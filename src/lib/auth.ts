@@ -6,6 +6,20 @@ WebBrowser.maybeCompleteAuthSession();
 
 export type Provider = 'google' | 'kakao';
 
+// 같은 인증 코드를 두 경로(딥링크 핸들러 + 로그인 함수)가 중복 교환하지 않도록
+const usedCodes = new Set<string>();
+
+async function exchangeCode(code: string): Promise<void> {
+  if (!supabase || usedCodes.has(code)) return;
+  usedCodes.add(code);
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  if (error) {
+    // 이미 다른 경로에서 세션이 만들어졌다면 성공으로 간주
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) throw new Error(error.message ?? '세션 교환에 실패했어요');
+  }
+}
+
 /** 구글/카카오 OAuth 로그인 (브라우저 → 딥링크 복귀 → 세션 교환) */
 export async function signInWithProvider(provider: Provider): Promise<boolean> {
   if (!supabase) throw new Error('Supabase가 설정되지 않았어요 (.env 확인)');
@@ -27,11 +41,7 @@ export async function signInWithProvider(provider: Provider): Promise<boolean> {
   // PKCE: ?code=... → 세션 교환
   const code = url.searchParams.get('code');
   if (code) {
-    const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
-    if (exErr) {
-      console.log('[auth] 세션 교환 실패:', JSON.stringify(exErr));
-      throw new Error(exErr.message ?? '세션 교환에 실패했어요');
-    }
+    await exchangeCode(code);
     return true;
   }
 
@@ -62,8 +72,7 @@ export async function handleAuthUrl(url: string | null | undefined): Promise<voi
   const parsed = Linking.parse(url);
   const code = parsed.queryParams?.code;
   if (typeof code === 'string' && code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) console.warn('[auth] 딥링크 세션 교환 실패:', error.message);
+    await exchangeCode(code).catch((e) => console.warn('[auth] 딥링크 세션 교환 실패:', e.message));
     return;
   }
   // implicit 폴백 (#access_token=...)
