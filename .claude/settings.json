@@ -1,5 +1,11 @@
 {
   "enabledPlugins": {
     "expo@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(git commit -q -m '패키지명 com.chordi.app으로 변경 + EAS 프로젝트 연결 *)"
+    ]
   }
 }

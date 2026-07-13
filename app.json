@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/images/icon.png",
-      "bundleIdentifier": "com.hyeonji.chordi"
+      "bundleIdentifier": "com.chordi.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,8 +19,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.hyeonji.chordi",
-      "googleServicesFile": "./google-services.json"
+      "package": "com.chordi.app",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
     "web": {
       "output": "static",
@@ -46,6 +50,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4f6779ea-206c-4173-b7bb-403198fd413b"
+      }
+    },
+    "owner": "alicia1209"
   }
 }
