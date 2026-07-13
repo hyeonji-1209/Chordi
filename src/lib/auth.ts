@@ -11,6 +11,7 @@ export async function signInWithProvider(provider: Provider): Promise<boolean> {
   if (!supabase) throw new Error('Supabase가 설정되지 않았어요 (.env 확인)');
 
   const redirectTo = Linking.createURL('auth-callback');
+  console.log('[auth] redirectTo (Supabase Redirect URLs에 등록 필요):', redirectTo);
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: { redirectTo, skipBrowserRedirect: true },
