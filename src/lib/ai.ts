@@ -267,8 +267,29 @@ function extractAbc(raw: string): string | null {
   return t;
 }
 
-/** 악보 사진 → ABC 필사 (전용 호출, 실패 시 null) */
+/** 프록시의 Audiveris OMR로 필사 (정확한 음표·리듬). 프록시가 없거나 실패하면 null */
+async function omrTranscribe(images: ImageInput[]): Promise<string | null> {
+  const base = process.env.EXPO_PUBLIC_AI_PROXY_URL ?? proxyBaseUrl();
+  if (!base) return null;
+  try {
+    const res = await fetch(`${base}/omr`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ images }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { abc: string | null };
+    return data.abc ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** 악보 사진 → ABC 필사. 1순위 OMR(Audiveris), 실패 시 AI 비전 필사 폴백 */
 export async function transcribeSheet(images: ImageInput[]): Promise<string | null> {
+  const omr = await omrTranscribe(images);
+  if (omr) return omr;
+
   try {
     const raw = await callText({
       system: TRANSCRIBE_SYSTEM,

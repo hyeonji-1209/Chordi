@@ -19,11 +19,18 @@
 
 ```bash
 npm install
-cp .env.example .env   # EXPO_PUBLIC_ANTHROPIC_API_KEY에 Anthropic API 키 입력
-npx expo start         # iPhone에서 Expo Go로 QR 스캔, 또는 i(iOS 시뮬레이터)
+npm run proxy      # 터미널 1 — AI 프록시 (ant 로컬 OAuth 자격증명 사용, 사전 1회 `ant auth login`)
+npx expo start     # 터미널 2 — Expo Go로 QR 스캔
 ```
 
-> ⚠️ 프로토타입이라 API 키를 앱에서 직접 사용한다(`EXPO_PUBLIC_` 환경변수는 번들에 포함됨). 배포 전에는 서버 프록시로 옮길 것.
+API 키를 직접 쓰려면 `.env`에 `EXPO_PUBLIC_ANTHROPIC_API_KEY`를 넣으면 프록시 없이 동작
+(단, `EXPO_PUBLIC_` 값은 번들에 포함되므로 프로토타입 전용).
+
+### 오선보 인식 (OMR)
+
+악보 사진 → 오선보 재생성의 1순위 엔진은 [Audiveris](https://github.com/Audiveris/audiveris)(오픈소스 OMR).
+`~/Applications/Audiveris.app`에 설치돼 있으면 프록시의 `/omr` 엔드포인트가 사용하고
+(MusicXML → ABC 변환은 `server/tools/xml2abc.py`), 없거나 인식 실패 시 Claude 비전 필사로 폴백한다.
 
 ## 구조
 
