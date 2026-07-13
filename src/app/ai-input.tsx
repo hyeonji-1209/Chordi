@@ -30,7 +30,7 @@ export default function AiInputScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
-      quality: 0.6,
+      quality: 0.85, // 음표 판독을 위해 화질 유지
       base64: true,
     });
     if (result.canceled) return;

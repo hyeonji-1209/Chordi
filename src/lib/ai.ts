@@ -25,9 +25,6 @@ const ChartSectionSchema = z.object({
 
 const FORM_DESC = '송폼 토큰 배열. 예: ["In","V1","PC","C×2","V2","B","C↑"]. 반복은 ×숫자, 키올림은 ↑';
 
-const ABC_DESC =
-  '악보 전체를 ABC 표기법으로. 헤더(X,T,M,L,Q,K) + 멜로디 음표 + 코드("G" 따옴표) + 가사(w:) 포함. 원키 기준. 멜로디를 못 읽으면 null';
-
 const AiSongSchema = z.object({
   index: z.number().describe('악보 순서 (0부터)'),
   title: z.string().nullable().describe('악보에서 확실히 읽은 곡 제목. 못 읽었으면 null'),
@@ -41,7 +38,6 @@ const AiSongSchema = z.object({
   question: z.string().nullable().describe('uncertain일 때 사용자에게 물을 질문'),
   form: z.array(z.string()).describe(FORM_DESC),
   sections: z.array(ChartSectionSchema).describe('악보에서 추출한 코드차트. 코드는 악보 원키 기준 그대로'),
-  abc: z.string().nullable().describe(ABC_DESC),
 });
 
 const AiSetlistSchema = z.object({
@@ -57,7 +53,6 @@ const AiSongAnalysisSchema = z.object({
   tags: z.array(z.string()).describe('분위기 태그 1~2개. "빠른 찬양" | "잔잔한" | "성가" 중에서'),
   form: z.array(z.string()).describe(FORM_DESC),
   sections: z.array(ChartSectionSchema).describe('악보에서 추출한 코드차트. 원키 기준'),
-  abc: z.string().nullable().describe(ABC_DESC),
 });
 
 const AiSetlistEditSchema = z.object({
@@ -78,17 +73,25 @@ const CHART_RULES = `코드차트 추출 규칙:
 - sections의 코드는 악보 원키 기준 그대로 적는다 (이조는 앱이 한다).
 - 악보가 흐릿하거나 코드를 못 읽으면 sections를 빈 배열로 두어도 된다. 지어내지 않는다.
 
-악보(ABC) 추출 규칙:
-- 오선보의 멜로디를 **곡의 처음부터 끝까지, 한 마디도 빠짐없이** ABC 표기법으로 옮긴다. abcjs로 렌더링된다.
-- 옮긴 마디 수는 원본 악보의 마디 수와 같아야 한다. 3~4마디만 옮기고 끝내는 것은 실패다.
-- 개별 음이 흐릿하면 앞뒤 흐름상 가장 그럴듯한 음으로 채운다. 마디를 통째로 생략하지 않는다.
-  악보 전체가 도저히 판독 불가일 때만 abc를 null로 한다.
-- 헤더: X:1, T:곡제목, M:박자(예 3/4, 4/4), L:1/8, Q:템포(있으면), K:원키.
-- 리듬을 정확히: 점음표(a3/2 b/2), 붙임줄(-), 쉼표(z)를 원본대로. 마디선 |, 도돌이 |: :|, 끝 |] 포함.
-- 코드는 해당 음표 앞에 "A"처럼 따옴표로 표기한다.
-- 가사는 각 악보 줄 아래 w: 로, 음절을 -(음절 나눔)와 *(멜리스마)로 음표에 맞춘다.
-  절이 여러 개면(1절/2절/3절) w: 줄을 절 수만큼 연달아 적는다.
-- 구간 표시는 첫 음표 앞 "^VERSE" 같은 annotation으로.`;
+멜로디(오선보)는 별도 단계에서 처리하므로 여기서는 다루지 않는다.`;
+
+const TRANSCRIBE_SYSTEM = `너는 악보 필사(music transcription) 전문가다.
+악보 사진을 받아 멜로디를 ABC 표기법으로 정확하게 필사한다. 결과는 abcjs로 렌더링된다.
+
+필수 규칙:
+- 곡의 **처음부터 끝까지, 한 마디도 빠짐없이** 옮긴다. 옮긴 마디 수가 원본과 같아야 한다.
+  일부만 옮기고 끝내는 것은 실패다.
+- 개별 음이 흐릿하면 앞뒤 멜로디 흐름상 가장 그럴듯한 음으로 채운다. 마디를 통째로 생략하지 않는다.
+- 상단 성부(멜로디)만 필사한다. 화음(코드 반주 성부)은 무시한다.
+- 헤더: X:1, T:곡제목, M:박자(3/4, 4/4 등), L:1/8, Q:템포(있으면), K:원키(조표 기준).
+- 리듬 정확히: 점음표(A3 B 등 길이 배수), 붙임줄(-), 쉼표(z), 마디선 |, 도돌이 |: :|, 끝 |].
+- 코드(A, D7, E7 등)는 해당 위치 음표 앞에 "A"처럼 따옴표로.
+- 가사는 각 악보 줄 아래 w: 로. 음절 나눔은 -, 한 음절이 여러 음이면 * 나 붙임줄 활용.
+  절이 여러 개면(1절/2절/3절) w: 줄을 절 수만큼 연달아 쓴다.
+- 악보 줄바꿈은 원본 악보의 단(system) 단위를 따른다.
+
+출력 형식: ABC 텍스트 **만** 출력한다. 설명, 인사, 마크다운 코드펜스 금지. 첫 줄은 반드시 X:1.
+악보 전체가 도저히 판독 불가일 때만 "NONE" 한 단어만 출력한다.`;
 
 const SETLIST_SYSTEM = `너는 한국 교회 찬양팀을 위한 콘티(예배 곡 순서) 도우미다.
 사용자가 악보 사진 여러 장과 "하고 싶은 말"(평소 말투의 요청)을 보낸다.
@@ -196,6 +199,53 @@ async function callStructured<S extends z.ZodTypeAny>(opts: {
   }
 }
 
+/** 스트리밍 일반 텍스트 호출 */
+async function callText(opts: {
+  system: string;
+  content: Anthropic.ContentBlockParam[] | string;
+  maxTokens: number;
+}): Promise<string> {
+  const stream = getClient().messages.stream({
+    model: 'claude-opus-4-8',
+    max_tokens: opts.maxTokens,
+    system: opts.system,
+    messages: [{ role: 'user', content: opts.content }],
+  });
+  const msg = await stream.finalMessage();
+  return msg.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('');
+}
+
+/** 모델 출력에서 ABC 본문만 추출 (코드펜스/서두 제거) */
+function extractAbc(raw: string): string | null {
+  let t = raw.trim();
+  const fence = t.match(/```(?:abc)?\s*\n([\s\S]*?)```/);
+  if (fence) t = fence[1].trim();
+  const x = t.indexOf('X:');
+  if (x > 0) t = t.slice(x);
+  if (!t.startsWith('X:') || !t.includes('K:') || !t.includes('|')) return null;
+  return t;
+}
+
+/** 악보 사진 → ABC 필사 (전용 호출, 실패 시 null) */
+export async function transcribeSheet(images: ImageInput[]): Promise<string | null> {
+  try {
+    const raw = await callText({
+      system: TRANSCRIBE_SYSTEM,
+      maxTokens: 32000,
+      content: [
+        ...imageBlocks(images),
+        { type: 'text', text: '이 악보를 처음부터 끝까지 ABC로 필사해줘.' },
+      ],
+    });
+    return extractAbc(raw);
+  } catch {
+    return null; // 필사는 부가 기능 — 실패해도 콘티 생성은 계속
+  }
+}
+
 type ImageInput = { base64: string; mediaType: string };
 
 function imageBlocks(images: ImageInput[]): Anthropic.ImageBlockParam[] {
@@ -214,30 +264,44 @@ export async function generateSetlist(
   userPrompt: string,
   today: string,
 ): Promise<AiSetlistResult> {
-  return callStructured({
-    system: SETLIST_SYSTEM,
-    maxTokens: 64000,
-    schema: AiSetlistSchema,
-    content: [
-      ...imageBlocks(images),
-      {
-        type: 'text',
-        text: `오늘 날짜: ${today}\n악보 ${images.length}장을 보냈어.\n\n하고 싶은 말:\n${userPrompt}`,
-      },
-    ],
-  });
+  // 콘티 해석과 곡별 악보 필사를 병렬로 실행
+  const [base, abcs] = await Promise.all([
+    callStructured({
+      system: SETLIST_SYSTEM,
+      maxTokens: 32000,
+      schema: AiSetlistSchema,
+      content: [
+        ...imageBlocks(images),
+        {
+          type: 'text',
+          text: `오늘 날짜: ${today}\n악보 ${images.length}장을 보냈어.\n\n하고 싶은 말:\n${userPrompt}`,
+        },
+      ],
+    }),
+    Promise.all(images.map((img) => transcribeSheet([img]))),
+  ]);
+
+  return {
+    ...base,
+    songs: base.songs.map((s) => ({ ...s, abc: abcs[s.index] ?? null })),
+  };
 }
 
 export async function analyzeSong(images: ImageInput[]): Promise<AiSongAnalysis> {
-  return callStructured({
-    system: SONG_SYSTEM,
-    maxTokens: 32000,
-    schema: AiSongAnalysisSchema,
-    content: [
-      ...imageBlocks(images),
-      { type: 'text', text: `이 곡 악보 ${images.length}장을 분석해줘.` },
-    ],
-  });
+  // 메타데이터 분석과 악보 필사를 병렬로
+  const [meta, abc] = await Promise.all([
+    callStructured({
+      system: SONG_SYSTEM,
+      maxTokens: 32000,
+      schema: AiSongAnalysisSchema,
+      content: [
+        ...imageBlocks(images),
+        { type: 'text', text: `이 곡 악보 ${images.length}장을 분석해줘.` },
+      ],
+    }),
+    transcribeSheet(images),
+  ]);
+  return { ...meta, abc };
 }
 
 export async function editSetlist(
