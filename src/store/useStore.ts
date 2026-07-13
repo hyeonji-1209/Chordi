@@ -51,8 +51,11 @@ type Store = {
   addTeam: (name: string) => void;
   joinTeam: (code: string) => void;
 
+  transcribing: Record<string, boolean>; // songId → 오선보 생성 중 (비영속)
+
   addSong: (analysis: AiSongAnalysis) => Song;
   setSongAbc: (songId: string, abc: string) => void; // 백그라운드 필사 완료 시 악보 부착
+  setTranscribing: (songId: string, on: boolean) => void;
   setItemKey: (setlistId: string, songId: string, key: string) => void;
   updateSongForm: (songId: string, form: FormChip[]) => void;
   applySetlistEdits: (setlistId: string, edit: AiSetlistEdit) => void;
@@ -74,6 +77,7 @@ export const useStore = create<Store>()(
       songs: [],
       setlists: [],
       aiDraft: EMPTY_DRAFT,
+      transcribing: {},
 
       currentTeam: () => {
         const { teams, currentTeamId } = get();
@@ -140,6 +144,14 @@ export const useStore = create<Store>()(
         set((st) => ({
           songs: st.songs.map((s) => (s.id === songId ? { ...s, abc } : s)),
         })),
+
+      setTranscribing: (songId, on) =>
+        set((st) => {
+          const next = { ...st.transcribing };
+          if (on) next[songId] = true;
+          else delete next[songId];
+          return { transcribing: next };
+        }),
 
       setItemKey: (setlistId, songId, key) =>
         set((st) => ({

@@ -66,9 +66,12 @@ export default function SongsScreen() {
       const analysis = await analyzeSong(images);
       const song = addSong(analysis);
       // 오선보 필사는 오래 걸리므로 백그라운드에서 — 끝나면 곡에 자동 부착
-      transcribeSheet(images).then((abc) => {
-        if (abc) useStore.getState().setSongAbc(song.id, abc);
-      });
+      useStore.getState().setTranscribing(song.id, true);
+      transcribeSheet(images)
+        .then((abc) => {
+          if (abc) useStore.getState().setSongAbc(song.id, abc);
+        })
+        .finally(() => useStore.getState().setTranscribing(song.id, false));
       Alert.alert(
         '악보 등록 완료',
         `"${song.title}" (${song.originalKey}키)를 추가했어요.\n오선보는 백그라운드에서 그려지는 중 — 잠시 뒤 연주 모드에 ♪악보 토글이 생겨요.`,

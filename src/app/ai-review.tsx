@@ -77,9 +77,11 @@ export default function AiReviewScreen() {
     setlist?.items.forEach((item, i) => {
       const ai = songsSnapshot[i];
       const p = ai ? transcriptions[ai.index] : undefined;
-      p?.then((abc) => {
+      if (!p) return;
+      useStore.getState().setTranscribing(item.songId, true);
+      p.then((abc) => {
         if (abc) useStore.getState().setSongAbc(item.songId, abc);
-      });
+      }).finally(() => useStore.getState().setTranscribing(item.songId, false));
     });
 
     router.replace(`/setlist/${id}`);

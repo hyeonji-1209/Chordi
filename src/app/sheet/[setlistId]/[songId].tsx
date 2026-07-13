@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -27,6 +28,7 @@ export default function SheetScreen() {
   const songById = useStore((s) => s.songById);
   const setItemKey = useStore((s) => s.setItemKey);
   const updateSongForm = useStore((s) => s.updateSongForm);
+  const isTranscribing = useStore((s) => !!s.transcribing[songId]);
 
   const [editOpen, setEditOpen] = useState(false);
   const [draftForm, setDraftForm] = useState<FormChip[]>([]);
@@ -183,7 +185,7 @@ export default function SheetScreen() {
           <Pressable style={st.keyBtn} onPress={() => changeKey(1)}>
             <Text style={{ fontSize: 16, color: C.ink }}>＋</Text>
           </Pressable>
-          {song.abc && (
+          {song.abc ? (
             <View style={st.viewToggle}>
               <Pressable
                 onPress={() => setViewMode('chart')}
@@ -202,7 +204,12 @@ export default function SheetScreen() {
                 </Text>
               </Pressable>
             </View>
-          )}
+          ) : isTranscribing ? (
+            <View style={st.transcribingPill}>
+              <ActivityIndicator size="small" color={C.primary} />
+              <Text style={st.transcribingLabel}>♪ 악보 생성 중…</Text>
+            </View>
+          ) : null}
         </View>
         {setlist && (
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -493,6 +500,17 @@ const st = StyleSheet.create({
   viewToggleBtnActive: { backgroundColor: C.primary },
   viewToggleLabel: { fontFamily: F.sansMedium, fontSize: 11.5, color: C.mut },
   viewToggleLabelActive: { fontFamily: F.sansBold, color: '#fff' },
+  transcribingPill: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: C.primaryTint,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  transcribingLabel: { fontFamily: F.sansMedium, fontSize: 11.5, color: C.primaryText },
   navBtn: {
     flex: 1,
     backgroundColor: C.card,
