@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -15,6 +15,7 @@ import { WebView } from 'react-native-webview';
 import { SheetMusic } from '@/components/SheetMusic';
 import { C, F } from '@/constants/theme';
 import { chipText, formToText, textToForm } from '@/lib/form';
+import { getSheetImageUrls } from '@/lib/sheets';
 import { semitonesBetween, shiftKey, transposeLine } from '@/lib/transpose';
 import { useStore } from '@/store/useStore';
 import type { FormChip } from '@/data/types';
@@ -39,6 +40,15 @@ export default function SheetScreen() {
   const [localKey, setLocalKey] = useState<string | null>(null); // 라이브러리 단독 보기용
   const [viewMode, setViewMode] = useState<'chart' | 'score' | 'original'>('chart'); // 차트/오선보/원본
   const [youtubeOpen, setYoutubeOpen] = useState(false); // 악보 보면서 음원 듣기
+  const [originalUrls, setOriginalUrls] = useState<string[]>([]); // 원본 사진 서명 URL
+
+  // 원본 보기 진입 시 서명 URL 발급 (팀 멤버만 가능)
+  useEffect(() => {
+    if (viewMode !== 'original') return;
+    const paths = song?.imageUrls ?? [];
+    if (!paths.length) return;
+    getSheetImageUrls(paths).then(setOriginalUrls);
+  }, [viewMode, song?.imageUrls, song]);
 
   const item = setlist?.items.find((it) => it.songId === songId);
   const index = setlist?.items.findIndex((it) => it.songId === songId) ?? -1;
@@ -142,7 +152,7 @@ export default function SheetScreen() {
 
       {/* score (오선보) */}
       {viewMode === 'original' && song.imageUrls?.length ? (
-        // 원본 악보 사진 — WebView라 핀치 줌 가능. 원키 기준임을 표시
+        // 원본 악보 사진 — 팀 멤버용 서명 URL로 로드, WebView라 핀치 줌 가능
         <View style={{ flex: 1 }}>
           {currentKey !== song.originalKey && (
             <View style={st.originalNotice}>
@@ -151,16 +161,22 @@ export default function SheetScreen() {
               </Text>
             </View>
           )}
-          <WebView
-            style={{ flex: 1, backgroundColor: '#fff' }}
-            originWhitelist={['*']}
-            source={{
-              html: `<!DOCTYPE html><html><head><meta charset="utf-8">
+          {originalUrls.length ? (
+            <WebView
+              style={{ flex: 1, backgroundColor: '#fff' }}
+              originWhitelist={['*']}
+              source={{
+                html: `<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
 <style>body{margin:0;background:#fff}img{width:100%;display:block;margin-bottom:8px}</style></head>
-<body>${song.imageUrls.map((u) => `<img src="${u}">`).join('')}</body></html>`,
-            }}
-          />
+<body>${originalUrls.map((u) => `<img src="${u}">`).join('')}</body></html>`,
+              }}
+            />
+          ) : (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator color={C.primary} />
+            </View>
+          )}
         </View>
       ) : viewMode === 'score' && song.abc ? (
         <SheetMusic abc={song.abc} transpose={scoreTranspose} />

@@ -7,14 +7,17 @@ function base64ToArrayBuffer(b64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-/** 원본 악보 사진들을 Storage에 올리고 공개 URL 목록 반환 (실패한 장은 건너뜀) */
+/**
+ * 원본 악보 사진을 비공개 버킷에 업로드하고 저장 경로 목록 반환.
+ * 접근은 팀 멤버가 서명 URL(getSheetImageUrls)로만 가능.
+ */
 export async function uploadSheetImages(
   teamId: string,
   songId: string,
   images: { base64: string; mediaType: string }[],
 ): Promise<string[]> {
   if (!supabase) return [];
-  const urls: string[] = [];
+  const paths: string[] = [];
   for (let i = 0; i < images.length; i++) {
     try {
       const img = images[i];
@@ -27,11 +30,21 @@ export async function uploadSheetImages(
           upsert: true,
         });
       if (error) throw error;
-      const { data } = supabase.storage.from('sheets').getPublicUrl(path);
-      urls.push(data.publicUrl);
+      paths.push(path);
     } catch (e) {
       console.warn('[sheets] 업로드 실패:', e instanceof Error ? e.message : e);
     }
   }
-  return urls;
+  return paths;
+}
+
+/** 저장 경로 → 서명 URL (1시간 유효). 팀 멤버만 발급 가능 (RLS) */
+export async function getSheetImageUrls(paths: string[]): Promise<string[]> {
+  if (!supabase || paths.length === 0) return [];
+  const { data, error } = await supabase.storage.from('sheets').createSignedUrls(paths, 3600);
+  if (error) {
+    console.warn('[sheets] 서명 URL 발급 실패:', error.message);
+    return [];
+  }
+  return (data ?? []).map((d) => d.signedUrl).filter((u): u is string => !!u);
 }
