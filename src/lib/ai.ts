@@ -1,0 +1,222 @@
+import Anthropic from '@anthropic-ai/sdk';
+import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import { z } from 'zod';
+import type {
+  AiSetlistEdit,
+  AiSetlistResult,
+  AiSongAnalysis,
+  Setlist,
+  Song,
+} from '@/data/types';
+
+const ChartSectionSchema = z.object({
+  name: z.string().describe('구간 이름. 예: "VERSE 1", "PRE-CHORUS", "CHORUS", "BRIDGE"'),
+  lines: z.array(
+    z.object({
+      chords: z
+        .string()
+        .describe('가사 윗줄의 코드 라인. 공백으로 코드 위치를 가사에 맞춰 정렬. 예: "G        D/F#      Em7"'),
+      lyrics: z.string().describe('해당 줄 가사'),
+    }),
+  ),
+});
+
+const FORM_DESC = '송폼 토큰 배열. 예: ["In","V1","PC","C×2","V2","B","C↑"]. 반복은 ×숫자, 키올림은 ↑';
+
+const AiSongSchema = z.object({
+  index: z.number().describe('악보 순서 (0부터)'),
+  title: z.string().nullable().describe('악보에서 확실히 읽은 곡 제목. 못 읽었으면 null'),
+  titleGuess: z.string().nullable().describe('제목을 못 읽었을 때의 추측. 확실하면 null'),
+  originalKey: z.string().nullable().describe('악보의 원키 (예: "A"). 못 읽었으면 null'),
+  targetKey: z.string().describe('사용자 요청을 반영한 연주 키 (예: "G")'),
+  notes: z.array(z.string()).describe('연주 지시 태그. 예: "후렴 ×2", "브릿지에서 ↑1키"'),
+  linkedToPrev: z.boolean().describe('앞 곡과 간주 없이 이어서 연주하는지'),
+  evidence: z.string().nullable().describe('이 판단의 근거가 된 사용자 문장 인용. 없으면 null'),
+  uncertain: z.boolean().describe('사용자에게 되물어야 할 만큼 애매한지'),
+  question: z.string().nullable().describe('uncertain일 때 사용자에게 물을 질문'),
+  form: z.array(z.string()).describe(FORM_DESC),
+  sections: z.array(ChartSectionSchema).describe('악보에서 추출한 코드차트. 코드는 악보 원키 기준 그대로'),
+});
+
+const AiSetlistSchema = z.object({
+  title: z.string().describe('콘티 제목. 예: "7월 19일 주일 1부"'),
+  summary: z.string().describe('한 줄 요약. 예: "악보 6장 인식 · 제목과 원키를 읽었어요"'),
+  songs: z.array(AiSongSchema),
+});
+
+const AiSongAnalysisSchema = z.object({
+  title: z.string().describe('곡 제목 (최선의 판단으로 반드시 채움)'),
+  originalKey: z.string().describe('악보의 원키. 예: "A". 판단 불가면 "C"'),
+  bpm: z.number().nullable().describe('BPM. 악보에 없으면 null'),
+  tags: z.array(z.string()).describe('분위기 태그 1~2개. "빠른 찬양" | "잔잔한" | "성가" 중에서'),
+  form: z.array(z.string()).describe(FORM_DESC),
+  sections: z.array(ChartSectionSchema).describe('악보에서 추출한 코드차트. 원키 기준'),
+});
+
+const AiSetlistEditSchema = z.object({
+  summary: z.string().describe('무엇을 바꿨는지 한 줄. 예: "2번곡을 F키로 내렸어요"'),
+  items: z.array(
+    z.object({
+      songId: z.string().describe('반드시 입력으로 받은 songId 그대로'),
+      key: z.string().describe('수정 반영 후의 연주 키'),
+      note: z.string().nullable().describe('수정 반영 후의 연주 지시 태그. 없으면 null'),
+      linkedToPrev: z.boolean(),
+    }),
+  ),
+});
+
+const CHART_RULES = `코드차트 추출 규칙:
+- 악보 이미지에서 가사와 코드를 최대한 읽어 sections로 만든다. 구간(VERSE/CHORUS 등)별로 나눈다.
+- chords는 가사 윗줄에 오는 코드 라인이며, 공백 개수로 코드가 가사의 어느 음절 위에 오는지 맞춘다.
+- sections의 코드는 악보 원키 기준 그대로 적는다 (이조는 앱이 한다).
+- 악보가 흐릿하거나 코드를 못 읽으면 sections를 빈 배열로 두어도 된다. 지어내지 않는다.`;
+
+const SETLIST_SYSTEM = `너는 한국 교회 찬양팀을 위한 콘티(예배 곡 순서) 도우미다.
+사용자가 악보 사진 여러 장과 "하고 싶은 말"(평소 말투의 요청)을 보낸다.
+
+해야 할 일:
+1. 각 악보 이미지에서 곡 제목과 원키를 읽는다.
+2. 사용자의 요청("다 G키로", "3번째 곡 후렴 2번 반복", "4번곡이랑 5번곡은 간주 없이 이어서" 등)을 곡별로 해석해 targetKey / notes / linkedToPrev 에 반영한다.
+3. 요청 해석의 근거가 된 사용자 문장을 evidence 에 그대로 인용한다.
+4. 제목을 못 읽었거나 해석이 애매한 곡은 uncertain=true 로 표시하고, 사용자에게 물을 질문(question)과 추측(titleGuess)을 함께 준다. 억지로 확정하지 않는다.
+5. 악보에서 송폼(form)과 코드차트(sections)를 추출한다.
+6. 오늘 날짜와 맥락을 참고해 콘티 제목(title)을 짓는다.
+
+곡 순서는 악보가 주어진 순서를 따르되, 사용자가 순서를 명시하면 그것을 따른다.
+키는 "G", "A", "Bb" 같은 표기를 쓴다. 키 올림이 곡 중간에 있으면 targetKey는 시작 키로 두고 notes에 "브릿지에서 ↑1키"처럼 적는다.
+
+${CHART_RULES}`;
+
+const SONG_SYSTEM = `너는 한국 교회 찬양팀의 악보 정리 도우미다.
+사용자가 곡 하나의 악보 사진(여러 장일 수 있음)을 보낸다.
+제목·원키·BPM·분위기 태그·송폼·코드차트를 추출한다.
+
+${CHART_RULES}`;
+
+const EDIT_SYSTEM = `너는 찬양팀 콘티 수정 도우미다.
+현재 콘티(JSON)와 사용자의 자연어 수정 요청을 받는다.
+요청을 해석해 각 곡의 key / note / linkedToPrev 를 수정한 전체 목록을 돌려준다.
+
+규칙:
+- 입력으로 받은 songId를 그대로 쓴다. 곡을 추가/삭제/순서 변경하지 않는다.
+- "2번곡"은 목록의 2번째 곡이다. "한 키 내려줘"는 반음 1개 내림이다 (예: G→F#).
+- 수정 요청과 무관한 곡은 원래 값 그대로 돌려준다.
+- 키는 "G", "F#", "Bb" 표기를 쓴다.`;
+
+let client: Anthropic | null = null;
+
+function getClient(): Anthropic {
+  const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      'EXPO_PUBLIC_ANTHROPIC_API_KEY가 설정되지 않았어요. 프로젝트 루트의 .env 파일에 키를 넣어주세요.',
+    );
+  }
+  if (!client) {
+    // 프로토타입: 앱에서 직접 호출. 배포 시에는 서버 프록시로 옮길 것.
+    client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+  }
+  return client;
+}
+
+type ImageInput = { base64: string; mediaType: string };
+
+function imageBlocks(images: ImageInput[]): Anthropic.ImageBlockParam[] {
+  return images.map((img) => ({
+    type: 'image',
+    source: {
+      type: 'base64',
+      media_type: img.mediaType as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
+      data: img.base64,
+    },
+  }));
+}
+
+export async function generateSetlist(
+  images: ImageInput[],
+  userPrompt: string,
+  today: string,
+): Promise<AiSetlistResult> {
+  const response = await getClient().messages.parse({
+    model: 'claude-opus-4-8',
+    max_tokens: 32000,
+    system: SETLIST_SYSTEM,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          ...imageBlocks(images),
+          {
+            type: 'text',
+            text: `오늘 날짜: ${today}\n악보 ${images.length}장을 보냈어.\n\n하고 싶은 말:\n${userPrompt}`,
+          },
+        ],
+      },
+    ],
+    output_config: { format: zodOutputFormat(AiSetlistSchema) },
+  });
+
+  if (!response.parsed_output) {
+    throw new Error('AI 응답을 해석하지 못했어요. 다시 시도해 주세요.');
+  }
+  return response.parsed_output as AiSetlistResult;
+}
+
+export async function analyzeSong(images: ImageInput[]): Promise<AiSongAnalysis> {
+  const response = await getClient().messages.parse({
+    model: 'claude-opus-4-8',
+    max_tokens: 16000,
+    system: SONG_SYSTEM,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          ...imageBlocks(images),
+          { type: 'text', text: `이 곡 악보 ${images.length}장을 분석해줘.` },
+        ],
+      },
+    ],
+    output_config: { format: zodOutputFormat(AiSongAnalysisSchema) },
+  });
+
+  if (!response.parsed_output) {
+    throw new Error('악보를 분석하지 못했어요. 다시 시도해 주세요.');
+  }
+  return response.parsed_output as AiSongAnalysis;
+}
+
+export async function editSetlist(
+  setlist: Setlist,
+  songs: Song[],
+  command: string,
+): Promise<AiSetlistEdit> {
+  const current = setlist.items.map((it, i) => {
+    const song = songs.find((s) => s.id === it.songId);
+    return {
+      order: i + 1,
+      songId: it.songId,
+      title: song?.title ?? '',
+      key: it.key,
+      note: it.note ?? null,
+      linkedToPrev: it.linkedToPrev ?? false,
+    };
+  });
+
+  const response = await getClient().messages.parse({
+    model: 'claude-opus-4-8',
+    max_tokens: 8000,
+    system: EDIT_SYSTEM,
+    messages: [
+      {
+        role: 'user',
+        content: `현재 콘티:\n${JSON.stringify(current, null, 2)}\n\n수정 요청: ${command}`,
+      },
+    ],
+    output_config: { format: zodOutputFormat(AiSetlistEditSchema) },
+  });
+
+  if (!response.parsed_output) {
+    throw new Error('수정 요청을 해석하지 못했어요. 다시 말해 주세요.');
+  }
+  return response.parsed_output as AiSetlistEdit;
+}
