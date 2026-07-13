@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyBadge, GoldTag, SheetThumb } from '@/components/ui';
 import { C, F } from '@/constants/theme';
 import { generateSetlist, transcribeSheet } from '@/lib/ai';
+import { notifyTeamMembers } from '@/lib/push';
 import { useStore } from '@/store/useStore';
 
 // 이미지 index → 오선보 필사 프로미스 (백그라운드 진행, 콘티 저장 후 곡에 부착)
@@ -87,8 +88,16 @@ export default function AiReviewScreen() {
   const doSave = (replace: boolean) => {
     const songsSnapshot = result?.songs ?? [];
     const transcriptions = pendingTranscriptions;
+    const team = useStore.getState().aiTargetTeam(); // confirm 전에 캡처 (draft가 리셋됨)
     const id = confirmAiSetlist(replace);
     if (!id) return;
+
+    // 팀원들에게 푸시 알림
+    notifyTeamMembers(
+      team.members.map((m) => m.id),
+      replace ? '콘티가 바뀌었어요' : '새 콘티가 올라왔어요',
+      `${result?.title ?? '콘티'} · ${songsSnapshot.length}곡 — ${team.name}`,
+    );
 
     // 필사가 끝나는 대로 각 곡에 오선보 부착 (items 순서 = result.songs 순서)
     const setlist = useStore.getState().setlistById(id);

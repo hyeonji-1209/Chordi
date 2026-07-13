@@ -19,6 +19,7 @@ import { LoginScreen } from '@/components/LoginScreen';
 import { TeamOnboarding } from '@/components/TeamOnboarding';
 import { C } from '@/constants/theme';
 import { handleAuthUrl } from '@/lib/auth';
+import { registerPushToken } from '@/lib/push';
 import { supabase, supabaseEnabled } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
 
@@ -63,6 +64,7 @@ export default function RootLayout() {
     if (session) {
       useStore.getState().setCurrentUser(session.user.id);
       useStore.getState().initFromServer();
+      registerPushToken(); // 콘티 알림용 (개발 빌드/정식 앱에서 동작)
     } else {
       useStore.getState().setSynced(false);
     }
