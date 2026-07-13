@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -23,8 +24,18 @@ export default function AiInputScreen() {
   const insets = useSafeAreaInsets();
   const images = useStore((s) => s.aiDraft.images);
   const prompt = useStore((s) => s.aiDraft.prompt);
+  const targetTeamId = useStore((s) => s.aiDraft.targetTeamId);
+  const teams = useStore((s) => s.teams);
+  const currentTeamId = useStore((s) => s.currentTeamId);
   const setAiImages = useStore((s) => s.setAiImages);
   const setAiPrompt = useStore((s) => s.setAiPrompt);
+  const setAiTargetTeam = useStore((s) => s.setAiTargetTeam);
+
+  // 기본 대상 팀 = 현재 팀
+  useEffect(() => {
+    if (!targetTeamId) setAiTargetTeam(currentTeamId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const pickImages = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -68,6 +79,30 @@ export default function AiInputScreen() {
         </View>
 
         <View style={{ paddingHorizontal: 20, gap: 18, paddingTop: 6 }}>
+          {/* target team (예배) */}
+          {teams.length > 1 && (
+            <View style={{ gap: 10 }}>
+              <Text style={st.stepTitle}>어떤 찬양팀(예배)에 올릴까요?</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {teams.map((t) => {
+                  const active = t.id === (targetTeamId ?? currentTeamId);
+                  return (
+                    <Pressable
+                      key={t.id}
+                      onPress={() => setAiTargetTeam(t.id)}
+                      style={[st.teamChip, active && st.teamChipActive]}
+                    >
+                      <View style={[st.teamDot, { backgroundColor: t.color }]} />
+                      <Text style={[st.teamChipLabel, active && st.teamChipLabelActive]}>
+                        {t.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
           {/* step 1: images */}
           <View style={{ gap: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
@@ -143,6 +178,21 @@ const st = StyleSheet.create({
   },
   headerTitle: { fontFamily: F.serif, fontSize: 18, color: C.ink },
   stepTitle: { fontFamily: F.sansBold, fontSize: 14, color: C.ink },
+  teamChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: C.card,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 999,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  teamChipActive: { borderColor: C.primary, backgroundColor: C.primaryTint },
+  teamDot: { width: 8, height: 8, borderRadius: 4 },
+  teamChipLabel: { fontFamily: F.sansMedium, fontSize: 12.5, color: C.ink },
+  teamChipLabelActive: { fontFamily: F.sansBold, color: C.primary },
   stepSub: { fontFamily: F.sans, fontSize: 12, color: C.mut },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   cell: {

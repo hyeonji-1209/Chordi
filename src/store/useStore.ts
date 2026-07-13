@@ -15,12 +15,20 @@ import type {
 type AiDraft = {
   images: { uri: string; base64: string; mediaType: string }[];
   prompt: string;
+  targetTeamId: string | null; // 콘티를 올릴 팀 (예배) — 팀이 여러 개면 선택
   result: AiSetlistResult | null;
   loading: boolean;
   error: string | null;
 };
 
-const EMPTY_DRAFT: AiDraft = { images: [], prompt: '', result: null, loading: false, error: null };
+const EMPTY_DRAFT: AiDraft = {
+  images: [],
+  prompt: '',
+  targetTeamId: null,
+  result: null,
+  loading: false,
+  error: null,
+};
 
 function newInviteCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -68,6 +76,8 @@ type Store = {
 
   setAiImages: (images: AiDraft['images']) => void;
   setAiPrompt: (prompt: string) => void;
+  setAiTargetTeam: (teamId: string) => void;
+  aiTargetTeam: () => Team; // 콘티를 올릴 팀 (미선택 시 현재 팀)
   setAiLoading: (loading: boolean) => void;
   setAiResult: (result: AiSetlistResult | null, error?: string | null) => void;
   resolveAiSong: (index: number, title: string) => void;
@@ -225,6 +235,14 @@ export const useStore = create<Store>()(
 
       setAiImages: (images) => set((st) => ({ aiDraft: { ...st.aiDraft, images } })),
       setAiPrompt: (prompt) => set((st) => ({ aiDraft: { ...st.aiDraft, prompt } })),
+      setAiTargetTeam: (teamId) =>
+        set((st) => ({ aiDraft: { ...st.aiDraft, targetTeamId: teamId } })),
+      aiTargetTeam: () => {
+        const st = get();
+        return (
+          st.teams.find((t) => t.id === st.aiDraft.targetTeamId) ?? st.currentTeam()
+        );
+      },
       setAiLoading: (loading) =>
         set((st) => ({ aiDraft: { ...st.aiDraft, loading, error: null } })),
       setAiResult: (result, error = null) =>
@@ -250,7 +268,8 @@ export const useStore = create<Store>()(
         const st = get();
         const title = st.aiDraft.result?.title;
         if (!title) return undefined;
-        return st.setlists.find((sl) => sl.teamId === st.currentTeamId && sl.title === title);
+        const team = st.aiTargetTeam();
+        return st.setlists.find((sl) => sl.teamId === team.id && sl.title === title);
       },
 
       confirmAiSetlist: (replace = false) => {
@@ -258,7 +277,7 @@ export const useStore = create<Store>()(
         const result = st.aiDraft.result;
         if (!result) return '';
 
-        const team = st.currentTeam();
+        const team = st.aiTargetTeam(); // 콘티를 올릴 팀 (예배)
         const leader = team.members.find((m) => m.leader)?.name ?? team.members[0]?.name ?? '';
         const now = Date.now();
         const newSongs: Song[] = [];

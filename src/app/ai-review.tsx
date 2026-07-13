@@ -42,7 +42,8 @@ export default function AiReviewScreen() {
       const imgs = images.map(({ base64, mediaType }) => ({ base64, mediaType }));
       // 오선보 필사는 오래 걸리므로 백그라운드에서 병렬 시작
       pendingTranscriptions = imgs.map((img) => transcribeSheet([img]));
-      const res = await generateSetlist(imgs, prompt, today);
+      const teamName = useStore.getState().aiTargetTeam().name;
+      const res = await generateSetlist(imgs, prompt, today, teamName);
       setAiResult(res);
     } catch (e) {
       setAiResult(null, e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요.');
