@@ -1,15 +1,32 @@
 import { useRouter } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card, ScreenTitle } from '@/components/ui';
 import { C, F } from '@/constants/theme';
 import { useStore } from '@/store/useStore';
+import type { Setlist } from '@/data/types';
 
 export default function SetlistsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const setlists = useStore((s) => s.setlists);
   const songById = useStore((s) => s.songById);
+  const deleteSetlist = useStore((s) => s.deleteSetlist);
+
+  const onLongPress = (sl: Setlist) => {
+    Alert.alert(sl.title, undefined, [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert('콘티 삭제', `"${sl.title}" 콘티를 삭제할까요?`, [
+            { text: '취소', style: 'cancel' },
+            { text: '삭제', style: 'destructive', onPress: () => deleteSetlist(sl.id) },
+          ]),
+      },
+    ]);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg, paddingTop: insets.top + 14 }}>
@@ -21,7 +38,10 @@ export default function SetlistsScreen() {
         keyExtractor={(s) => s.id}
         contentContainerStyle={{ padding: 20, paddingTop: 14, gap: 10 }}
         renderItem={({ item }) => (
-          <Pressable onPress={() => router.push(`/setlist/${item.id}`)}>
+          <Pressable
+            onPress={() => router.push(`/setlist/${item.id}`)}
+            onLongPress={() => onLongPress(item)}
+          >
             {({ pressed }) => (
               <Card style={[{ gap: 8 }, pressed && { borderColor: C.primary }]}>
                 <Text style={st.title}>{item.title}</Text>

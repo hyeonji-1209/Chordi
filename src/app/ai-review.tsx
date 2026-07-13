@@ -67,9 +67,26 @@ export default function AiReviewScreen() {
   };
 
   const save = () => {
+    // 같은 예배(같은 제목) 콘티 중복 확인 — 찬양은 한 번, 콘티도 하나
+    const dup = useStore.getState().findDuplicateSetlist();
+    if (dup) {
+      Alert.alert(
+        '이미 콘티가 있어요',
+        `"${dup.title}" 콘티가 이미 있어요.\n이번에 만든 콘티로 바꿀까요?`,
+        [
+          { text: '취소', style: 'cancel' },
+          { text: '바꾸기', style: 'destructive', onPress: () => doSave(true) },
+        ],
+      );
+      return;
+    }
+    doSave(false);
+  };
+
+  const doSave = (replace: boolean) => {
     const songsSnapshot = result?.songs ?? [];
     const transcriptions = pendingTranscriptions;
-    const id = confirmAiSetlist();
+    const id = confirmAiSetlist(replace);
     if (!id) return;
 
     // 필사가 끝나는 대로 각 곡에 오선보 부착 (items 순서 = result.songs 순서)

@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 import { SheetMusic } from '@/components/SheetMusic';
 import { C, F } from '@/constants/theme';
 import { chipText, formToText, textToForm } from '@/lib/form';
@@ -37,6 +38,7 @@ export default function SheetScreen() {
   const [formText, setFormText] = useState('');
   const [localKey, setLocalKey] = useState<string | null>(null); // 라이브러리 단독 보기용
   const [viewMode, setViewMode] = useState<'chart' | 'score'>('chart'); // 차트 ⇄ 오선보
+  const [youtubeOpen, setYoutubeOpen] = useState(false); // 악보 보면서 음원 듣기
 
   const item = setlist?.items.find((it) => it.songId === songId);
   const index = setlist?.items.findIndex((it) => it.songId === songId) ?? -1;
@@ -174,6 +176,19 @@ export default function SheetScreen() {
       </ScrollView>
       )}
 
+      {/* YouTube — 악보 보면서 음원 듣기 */}
+      {youtubeOpen && (
+        <View style={st.youtube}>
+          <WebView
+            source={{
+              uri: `https://m.youtube.com/results?search_query=${encodeURIComponent(`${song.title} 찬양`)}`,
+            }}
+            allowsInlineMediaPlayback
+            style={{ flex: 1 }}
+          />
+        </View>
+      )}
+
       {/* bottom toolbar */}
       <View style={[st.toolbar, { paddingBottom: insets.bottom + 12 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -184,6 +199,12 @@ export default function SheetScreen() {
           <Text style={st.keyCurrent}>{currentKey}</Text>
           <Pressable style={st.keyBtn} onPress={() => changeKey(1)}>
             <Text style={{ fontSize: 16, color: C.ink }}>＋</Text>
+          </Pressable>
+          <Pressable
+            style={[st.toolBtn, youtubeOpen && st.toolBtnActive]}
+            onPress={() => setYoutubeOpen((v) => !v)}
+          >
+            <Text style={[st.toolBtnLabel, youtubeOpen && { color: '#fff' }]}>▶ 음원</Text>
           </Pressable>
           {song.abc ? (
             <View style={st.viewToggle}>
@@ -488,6 +509,22 @@ const st = StyleSheet.create({
     color: C.primary,
     minWidth: 30,
     textAlign: 'center',
+  },
+  toolBtn: {
+    backgroundColor: C.card,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  toolBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
+  toolBtnLabel: { fontFamily: F.sansMedium, fontSize: 12, color: C.ink },
+  youtube: {
+    height: 250,
+    borderTopWidth: 1,
+    borderColor: C.border,
+    backgroundColor: '#000',
   },
   viewToggle: {
     marginLeft: 'auto',

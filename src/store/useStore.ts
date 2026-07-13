@@ -31,10 +31,12 @@ const SEED_TEAM: Team = {
   id: 'team-1',
   name: '내 찬양팀',
   color: '#3E4C8E',
-  myRole: '리더',
+  myRole: '인도자',
   inviteCode: newInviteCode(),
-  members: [{ id: 'me', name: '나', roles: '리더', leader: true }],
+  members: [{ id: 'me', name: '나', roles: '인도자', leader: true }],
 };
+
+const ME = 'me';
 
 type Store = {
   teams: Team[];
@@ -54,6 +56,10 @@ type Store = {
   transcribing: Record<string, boolean>; // songId → 오선보 생성 중 (비영속)
 
   addSong: (analysis: AiSongAnalysis) => Song;
+  updateSong: (songId: string, patch: Partial<Pick<Song, 'title' | 'originalKey'>>) => void;
+  deleteSong: (songId: string) => void;
+  deleteSetlist: (setlistId: string) => void;
+  canEditSong: (songId: string) => boolean; // 올린 사람만 수정·삭제
   setSongAbc: (songId: string, abc: string) => void; // 백그라운드 필사 완료 시 악보 부착
   setTranscribing: (songId: string, on: boolean) => void;
   setItemKey: (setlistId: string, songId: string, key: string) => void;
@@ -65,7 +71,9 @@ type Store = {
   setAiLoading: (loading: boolean) => void;
   setAiResult: (result: AiSetlistResult | null, error?: string | null) => void;
   resolveAiSong: (index: number, title: string) => void;
-  confirmAiSetlist: () => string; // returns new setlist id
+  /** 같은 제목(같은 예배) 콘티가 이미 있으면 id 반환 */
+  findDuplicateSetlist: () => Setlist | undefined;
+  confirmAiSetlist: (replace?: boolean) => string; // returns new setlist id
   resetAll: () => void; // 모든 데이터 초기화 (개발/테스트용)
 };
 
@@ -93,9 +101,9 @@ export const useStore = create<Store>()(
           id: `team-${Date.now()}`,
           name,
           color: '#B98A2F',
-          myRole: '리더',
+          myRole: '인도자',
           inviteCode: newInviteCode(),
-          members: [{ id: 'me', name: '나', roles: '리더', leader: true }],
+          members: [{ id: ME, name: '나', roles: '인도자', leader: true }],
         };
         set((st) => ({ teams: [...st.teams, team], currentTeamId: team.id }));
       },
@@ -107,7 +115,7 @@ export const useStore = create<Store>()(
           color: '#8A857A',
           myRole: '멤버',
           inviteCode: code.toUpperCase(),
-          members: [{ id: 'me', name: '나', roles: '멤버' }],
+          members: [{ id: ME, name: '나', roles: '멤버' }],
         };
         set((st) => ({ teams: [...st.teams, team], currentTeamId: team.id }));
       },
@@ -131,6 +139,7 @@ export const useStore = create<Store>()(
           form: stringsToForm(a.form),
           sections: a.sections,
           abc: a.abc ?? undefined,
+          uploadedBy: existing?.uploadedBy ?? ME,
         };
         set({
           songs: existing
@@ -138,6 +147,30 @@ export const useStore = create<Store>()(
             : [song, ...st.songs],
         });
         return song;
+      },
+
+      updateSong: (songId, patch) =>
+        set((st) => ({
+          songs: st.songs.map((s) => (s.id === songId ? { ...s, ...patch } : s)),
+        })),
+
+      deleteSong: (songId) =>
+        set((st) => ({
+          songs: st.songs.filter((s) => s.id !== songId),
+          // 콘티에서도 해당 곡 제거
+          setlists: st.setlists.map((sl) => ({
+            ...sl,
+            items: sl.items.filter((it) => it.songId !== songId),
+          })),
+        })),
+
+      deleteSetlist: (setlistId) =>
+        set((st) => ({ setlists: st.setlists.filter((sl) => sl.id !== setlistId) })),
+
+      canEditSong: (songId) => {
+        const song = get().songById(songId);
+        if (!song) return false;
+        return (song.uploadedBy ?? ME) === ME; // 올린 사람만 (예전 데이터는 내가 올린 것으로 간주)
       },
 
       setSongAbc: (songId, abc) =>
@@ -213,7 +246,14 @@ export const useStore = create<Store>()(
           };
         }),
 
-      confirmAiSetlist: () => {
+      findDuplicateSetlist: () => {
+        const st = get();
+        const title = st.aiDraft.result?.title;
+        if (!title) return undefined;
+        return st.setlists.find((sl) => sl.teamId === st.currentTeamId && sl.title === title);
+      },
+
+      confirmAiSetlist: (replace = false) => {
         const st = get();
         const result = st.aiDraft.result;
         if (!result) return '';
@@ -251,6 +291,7 @@ export const useStore = create<Store>()(
               form: stringsToForm(ai.form),
               sections: ai.sections,
               abc: ai.abc ?? undefined,
+              uploadedBy: ME,
             };
             newSongs.push(song);
           }
@@ -271,9 +312,14 @@ export const useStore = create<Store>()(
           items,
         };
 
+        // 같은 제목(같은 예배) 콘티 교체
+        const remaining = replace
+          ? st.setlists.filter((sl) => !(sl.teamId === team.id && sl.title === setlist.title))
+          : st.setlists;
+
         set({
           songs: [...newSongs, ...st.songs.map((s) => updatedSongs.get(s.id) ?? s)],
-          setlists: [setlist, ...st.setlists],
+          setlists: [setlist, ...remaining],
           aiDraft: EMPTY_DRAFT,
         });
         return setlist.id;
