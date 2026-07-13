@@ -79,12 +79,16 @@ const CHART_RULES = `코드차트 추출 규칙:
 - 악보가 흐릿하거나 코드를 못 읽으면 sections를 빈 배열로 두어도 된다. 지어내지 않는다.
 
 악보(ABC) 추출 규칙:
-- 오선보의 멜로디 음표·리듬·마디를 ABC 표기법으로 옮긴다. abcjs로 렌더링된다.
-- 헤더: X:1, T:곡제목, M:박자(예 4/4), L:1/8, Q:템포(있으면), K:원키.
-- 코드는 음표 앞에 "G"처럼 따옴표로, 가사는 각 줄 아래 w: 로 음절을 -와 공백으로 음표에 맞춘다.
-- 구간 경계는 %%text VERSE 같은 주석 대신 마디 내 P:V, P:C 파트 표기나 [P:...]를 쓰지 말고,
-  각 구간 첫 줄 위에 "^VERSE" 같은 텍스트 주석(annotation)으로 표시한다.
-- 음이 확실하지 않은 부분은 대충 짓지 말고, 그 구간을 생략한다. 전체를 못 읽겠으면 abc를 null로.`;
+- 오선보의 멜로디를 **곡의 처음부터 끝까지, 한 마디도 빠짐없이** ABC 표기법으로 옮긴다. abcjs로 렌더링된다.
+- 옮긴 마디 수는 원본 악보의 마디 수와 같아야 한다. 3~4마디만 옮기고 끝내는 것은 실패다.
+- 개별 음이 흐릿하면 앞뒤 흐름상 가장 그럴듯한 음으로 채운다. 마디를 통째로 생략하지 않는다.
+  악보 전체가 도저히 판독 불가일 때만 abc를 null로 한다.
+- 헤더: X:1, T:곡제목, M:박자(예 3/4, 4/4), L:1/8, Q:템포(있으면), K:원키.
+- 리듬을 정확히: 점음표(a3/2 b/2), 붙임줄(-), 쉼표(z)를 원본대로. 마디선 |, 도돌이 |: :|, 끝 |] 포함.
+- 코드는 해당 음표 앞에 "A"처럼 따옴표로 표기한다.
+- 가사는 각 악보 줄 아래 w: 로, 음절을 -(음절 나눔)와 *(멜리스마)로 음표에 맞춘다.
+  절이 여러 개면(1절/2절/3절) w: 줄을 절 수만큼 연달아 적는다.
+- 구간 표시는 첫 음표 앞 "^VERSE" 같은 annotation으로.`;
 
 const SETLIST_SYSTEM = `너는 한국 교회 찬양팀을 위한 콘티(예배 곡 순서) 도우미다.
 사용자가 악보 사진 여러 장과 "하고 싶은 말"(평소 말투의 요청)을 보낸다.
@@ -212,7 +216,7 @@ export async function generateSetlist(
 ): Promise<AiSetlistResult> {
   return callStructured({
     system: SETLIST_SYSTEM,
-    maxTokens: 32000,
+    maxTokens: 64000,
     schema: AiSetlistSchema,
     content: [
       ...imageBlocks(images),
@@ -227,7 +231,7 @@ export async function generateSetlist(
 export async function analyzeSong(images: ImageInput[]): Promise<AiSongAnalysis> {
   return callStructured({
     system: SONG_SYSTEM,
-    maxTokens: 16000,
+    maxTokens: 32000,
     schema: AiSongAnalysisSchema,
     content: [
       ...imageBlocks(images),
