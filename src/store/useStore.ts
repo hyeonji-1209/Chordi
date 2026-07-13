@@ -109,8 +109,11 @@ export const useStore = create<Store>()(
 
       addSong: (a) => {
         const st = get();
+        const existing = st.songs.find(
+          (s) => s.teamId === st.currentTeamId && s.title === a.title,
+        );
         const song: Song = {
-          id: `song-${Date.now()}`,
+          id: existing?.id ?? `song-${Date.now()}`,
           teamId: st.currentTeamId,
           title: a.title,
           originalKey: a.originalKey,
@@ -124,7 +127,11 @@ export const useStore = create<Store>()(
           sections: a.sections,
           abc: a.abc ?? undefined,
         };
-        set({ songs: [song, ...st.songs] });
+        set({
+          songs: existing
+            ? st.songs.map((s) => (s.id === existing.id ? song : s)) // 같은 제목이면 새 분석으로 갱신
+            : [song, ...st.songs],
+        });
         return song;
       },
 
@@ -197,11 +204,22 @@ export const useStore = create<Store>()(
         const leader = team.members.find((m) => m.leader)?.name ?? team.members[0]?.name ?? '';
         const now = Date.now();
         const newSongs: Song[] = [];
+        const updatedSongs = new Map<string, Song>();
 
         const items = result.songs.map((ai) => {
           const title = ai.title ?? ai.titleGuess ?? `악보 ${ai.index + 1}`;
           let song = st.songs.find((s) => s.teamId === team.id && s.title === title);
-          if (!song) {
+          if (song) {
+            // 같은 제목 곡이 있으면 이번에 새로 읽은 차트/송폼/악보로 갱신
+            song = {
+              ...song,
+              originalKey: ai.originalKey ?? song.originalKey,
+              form: ai.form.length ? stringsToForm(ai.form) : song.form,
+              sections: ai.sections.length ? ai.sections : song.sections,
+              abc: ai.abc ?? song.abc,
+            };
+            updatedSongs.set(song.id, song);
+          } else {
             song = {
               id: `song-${now}-${ai.index}`,
               teamId: team.id,
@@ -236,7 +254,7 @@ export const useStore = create<Store>()(
         };
 
         set({
-          songs: [...newSongs, ...st.songs],
+          songs: [...newSongs, ...st.songs.map((s) => updatedSongs.get(s.id) ?? s)],
           setlists: [setlist, ...st.setlists],
           aiDraft: EMPTY_DRAFT,
         });
