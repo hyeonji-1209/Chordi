@@ -25,6 +25,9 @@ const ChartSectionSchema = z.object({
 
 const FORM_DESC = '송폼 토큰 배열. 예: ["In","V1","PC","C×2","V2","B","C↑"]. 반복은 ×숫자, 키올림은 ↑';
 
+const ABC_DESC =
+  '악보 전체를 ABC 표기법으로. 헤더(X,T,M,L,Q,K) + 멜로디 음표 + 코드("G" 따옴표) + 가사(w:) 포함. 원키 기준. 멜로디를 못 읽으면 null';
+
 const AiSongSchema = z.object({
   index: z.number().describe('악보 순서 (0부터)'),
   title: z.string().nullable().describe('악보에서 확실히 읽은 곡 제목. 못 읽었으면 null'),
@@ -38,6 +41,7 @@ const AiSongSchema = z.object({
   question: z.string().nullable().describe('uncertain일 때 사용자에게 물을 질문'),
   form: z.array(z.string()).describe(FORM_DESC),
   sections: z.array(ChartSectionSchema).describe('악보에서 추출한 코드차트. 코드는 악보 원키 기준 그대로'),
+  abc: z.string().nullable().describe(ABC_DESC),
 });
 
 const AiSetlistSchema = z.object({
@@ -53,6 +57,7 @@ const AiSongAnalysisSchema = z.object({
   tags: z.array(z.string()).describe('분위기 태그 1~2개. "빠른 찬양" | "잔잔한" | "성가" 중에서'),
   form: z.array(z.string()).describe(FORM_DESC),
   sections: z.array(ChartSectionSchema).describe('악보에서 추출한 코드차트. 원키 기준'),
+  abc: z.string().nullable().describe(ABC_DESC),
 });
 
 const AiSetlistEditSchema = z.object({
@@ -71,7 +76,15 @@ const CHART_RULES = `코드차트 추출 규칙:
 - 악보 이미지에서 가사와 코드를 최대한 읽어 sections로 만든다. 구간(VERSE/CHORUS 등)별로 나눈다.
 - chords는 가사 윗줄에 오는 코드 라인이며, 공백 개수로 코드가 가사의 어느 음절 위에 오는지 맞춘다.
 - sections의 코드는 악보 원키 기준 그대로 적는다 (이조는 앱이 한다).
-- 악보가 흐릿하거나 코드를 못 읽으면 sections를 빈 배열로 두어도 된다. 지어내지 않는다.`;
+- 악보가 흐릿하거나 코드를 못 읽으면 sections를 빈 배열로 두어도 된다. 지어내지 않는다.
+
+악보(ABC) 추출 규칙:
+- 오선보의 멜로디 음표·리듬·마디를 ABC 표기법으로 옮긴다. abcjs로 렌더링된다.
+- 헤더: X:1, T:곡제목, M:박자(예 4/4), L:1/8, Q:템포(있으면), K:원키.
+- 코드는 음표 앞에 "G"처럼 따옴표로, 가사는 각 줄 아래 w: 로 음절을 -와 공백으로 음표에 맞춘다.
+- 구간 경계는 %%text VERSE 같은 주석 대신 마디 내 P:V, P:C 파트 표기나 [P:...]를 쓰지 말고,
+  각 구간 첫 줄 위에 "^VERSE" 같은 텍스트 주석(annotation)으로 표시한다.
+- 음이 확실하지 않은 부분은 대충 짓지 말고, 그 구간을 생략한다. 전체를 못 읽겠으면 abc를 null로.`;
 
 const SETLIST_SYSTEM = `너는 한국 교회 찬양팀을 위한 콘티(예배 곡 순서) 도우미다.
 사용자가 악보 사진 여러 장과 "하고 싶은 말"(평소 말투의 요청)을 보낸다.

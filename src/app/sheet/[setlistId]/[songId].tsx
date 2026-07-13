@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SheetMusic } from '@/components/SheetMusic';
 import { C, F } from '@/constants/theme';
 import { chipText, formToText, textToForm } from '@/lib/form';
 import { semitonesBetween, shiftKey, transposeLine } from '@/lib/transpose';
@@ -33,6 +34,7 @@ export default function SheetScreen() {
   const [textMode, setTextMode] = useState(false);
   const [formText, setFormText] = useState('');
   const [localKey, setLocalKey] = useState<string | null>(null); // 라이브러리 단독 보기용
+  const [viewMode, setViewMode] = useState<'chart' | 'score'>('chart'); // 차트 ⇄ 오선보
 
   const item = setlist?.items.find((it) => it.songId === songId);
   const index = setlist?.items.findIndex((it) => it.songId === songId) ?? -1;
@@ -46,6 +48,8 @@ export default function SheetScreen() {
     () => (song ? semitonesBetween(song.originalKey, currentKey) : 0),
     [song, currentKey],
   );
+  // 오선보 이조는 가까운 방향으로 (7반음 올림 대신 5반음 내림)
+  const scoreTranspose = semitones > 6 ? semitones - 12 : semitones;
 
   if (!song) return null;
 
@@ -132,7 +136,11 @@ export default function SheetScreen() {
         </Pressable>
       </View>
 
-      {/* chord chart */}
+      {/* score (오선보) */}
+      {viewMode === 'score' && song.abc ? (
+        <SheetMusic abc={song.abc} transpose={scoreTranspose} />
+      ) : (
+      /* chord chart */
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, gap: 14, paddingBottom: 20 }}>
         {song.sections.length === 0 && (
           <Text style={{ fontFamily: F.sans, fontSize: 13, color: C.mut }}>
@@ -162,6 +170,7 @@ export default function SheetScreen() {
           </View>
         )}
       </ScrollView>
+      )}
 
       {/* bottom toolbar */}
       <View style={[st.toolbar, { paddingBottom: insets.bottom + 12 }]}>
@@ -174,6 +183,26 @@ export default function SheetScreen() {
           <Pressable style={st.keyBtn} onPress={() => changeKey(1)}>
             <Text style={{ fontSize: 16, color: C.ink }}>＋</Text>
           </Pressable>
+          {song.abc && (
+            <View style={st.viewToggle}>
+              <Pressable
+                onPress={() => setViewMode('chart')}
+                style={[st.viewToggleBtn, viewMode === 'chart' && st.viewToggleBtnActive]}
+              >
+                <Text style={[st.viewToggleLabel, viewMode === 'chart' && st.viewToggleLabelActive]}>
+                  차트
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setViewMode('score')}
+                style={[st.viewToggleBtn, viewMode === 'score' && st.viewToggleBtnActive]}
+              >
+                <Text style={[st.viewToggleLabel, viewMode === 'score' && st.viewToggleLabelActive]}>
+                  ♪ 악보
+                </Text>
+              </Pressable>
+            </View>
+          )}
         </View>
         {setlist && (
           <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -453,6 +482,17 @@ const st = StyleSheet.create({
     minWidth: 30,
     textAlign: 'center',
   },
+  viewToggle: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    backgroundColor: '#F0EDE5',
+    borderRadius: 999,
+    padding: 3,
+  },
+  viewToggleBtn: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
+  viewToggleBtnActive: { backgroundColor: C.primary },
+  viewToggleLabel: { fontFamily: F.sansMedium, fontSize: 11.5, color: C.mut },
+  viewToggleLabelActive: { fontFamily: F.sansBold, color: '#fff' },
   navBtn: {
     flex: 1,
     backgroundColor: C.card,

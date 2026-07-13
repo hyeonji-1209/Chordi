@@ -26,6 +26,7 @@ export type Song = {
   form: FormChip[];
   sections: ChartSection[];
   memo?: string; // 인도자 메모
+  abc?: string; // 악보(멜로디+코드+가사) ABC 표기 — 오선보 렌더링용, 원키 기준
 };
 
 export type SetlistItem = {
@@ -80,6 +81,7 @@ export type AiSongResult = {
   question: string | null; // 되물을 질문
   form: string[]; // ["In", "V1", "C×2", "B", "C↑"]
   sections: AiChartSection[]; // 악보에서 추출한 코드차트 (원키 기준)
+  abc: string | null; // 멜로디 ABC 표기 (원키 기준). 못 읽으면 null
 };
 
 export type AiSetlistResult = {
@@ -96,6 +98,7 @@ export type AiSongAnalysis = {
   tags: string[];
   form: string[];
   sections: AiChartSection[];
+  abc: string | null;
 };
 
 // ── "말로 수정" 결과 ──

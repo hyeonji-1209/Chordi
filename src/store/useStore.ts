@@ -121,6 +121,7 @@ export const useStore = create<Store>()(
             : '이미지 악보 · 원본 키 표시만',
           form: stringsToForm(a.form),
           sections: a.sections,
+          abc: a.abc ?? undefined,
         };
         set({ songs: [song, ...st.songs] });
         return song;
@@ -212,6 +213,7 @@ export const useStore = create<Store>()(
                 : '이미지 악보 · 원본 키 표시만',
               form: stringsToForm(ai.form),
               sections: ai.sections,
+              abc: ai.abc ?? undefined,
             };
             newSongs.push(song);
           }
