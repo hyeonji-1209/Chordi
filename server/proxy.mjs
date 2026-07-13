@@ -63,10 +63,26 @@ async function forward(req, body, token) {
 function run(cmd, args, timeoutMs) {
   return new Promise((resolve, reject) => {
     execFile(cmd, args, { timeout: timeoutMs, maxBuffer: 32 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) reject(new Error(`${path.basename(cmd)} 실패: ${stderr?.slice(-400) || err.message}`));
-      else resolve(stdout);
+      if (err) {
+        const detail = [stderr, stdout].map((s) => (s ?? '').trim().slice(-600)).filter(Boolean).join('\n');
+        reject(new Error(`${path.basename(cmd)} 실패:\n${detail || err.message}`));
+      } else resolve(stdout);
     });
   });
+}
+
+/** OMR은 해상도가 생명 — 작은 이미지는 sips로 업스케일 (macOS 내장) */
+async function upscaleIfSmall(file) {
+  try {
+    const out = await run('sips', ['-g', 'pixelWidth', file], 10_000);
+    const width = Number(out.match(/pixelWidth: (\d+)/)?.[1] ?? 0);
+    if (width > 0 && width < 1500) {
+      await run('sips', ['--resampleWidth', '2200', file], 30_000);
+      console.log(`  업스케일: ${width}px → 2200px`);
+    }
+  } catch {
+    // 업스케일 실패는 무시하고 원본으로 진행
+  }
 }
 
 /** 악보 이미지 → Audiveris(OMR) → MusicXML → xml2abc → ABC */
@@ -79,6 +95,7 @@ async function omrToAbc(images) {
       const ext = String(img.mediaType ?? '').includes('png') ? 'png' : 'jpg';
       const p = path.join(work, `page-${i + 1}.${ext}`);
       await fs.writeFile(p, Buffer.from(img.base64, 'base64'));
+      await upscaleIfSmall(p);
       inputs.push(p);
     }
 
