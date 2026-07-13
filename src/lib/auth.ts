@@ -18,6 +18,7 @@ export async function signInWithProvider(provider: Provider): Promise<boolean> {
   if (error || !data.url) throw error ?? new Error('로그인 URL을 만들지 못했어요');
 
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+  console.log('[auth] 브라우저 결과:', result.type, 'url' in result ? result.url : '');
   if (result.type !== 'success') return false; // 사용자가 취소
 
   const url = new URL(result.url);
@@ -26,7 +27,10 @@ export async function signInWithProvider(provider: Provider): Promise<boolean> {
   const code = url.searchParams.get('code');
   if (code) {
     const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
-    if (exErr) throw exErr;
+    if (exErr) {
+      console.log('[auth] 세션 교환 실패:', JSON.stringify(exErr));
+      throw new Error(exErr.message ?? '세션 교환에 실패했어요');
+    }
     return true;
   }
 
@@ -40,7 +44,9 @@ export async function signInWithProvider(provider: Provider): Promise<boolean> {
     return true;
   }
 
-  const errDesc = url.searchParams.get('error_description');
+  const errDesc =
+    url.searchParams.get('error_description') ?? url.searchParams.get('error');
+  console.log('[auth] 응답 해석 실패. 전체 URL:', result.url);
   throw new Error(errDesc ?? '로그인 응답을 해석하지 못했어요');
 }
 
