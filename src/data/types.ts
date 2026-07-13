@@ -27,6 +27,7 @@ export type Song = {
   sections: ChartSection[];
   memo?: string; // 인도자 메모
   abc?: string; // 악보(멜로디+코드+가사) ABC 표기 — 오선보 렌더링용, 원키 기준
+  imageUrls?: string[]; // 원본 악보 사진 (Storage 공개 URL)
   uploadedBy: string; // 올린 멤버 id ('me' 등) — 수정·삭제 권한 기준
 };
 

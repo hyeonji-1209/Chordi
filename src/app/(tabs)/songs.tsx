@@ -16,7 +16,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyBadge, ScreenTitle, SheetThumb } from '@/components/ui';
 import { C, F } from '@/constants/theme';
-import { analyzeSong, transcribeSheet } from '@/lib/ai';
+import { analyzeSong } from '@/lib/ai';
+import { uploadSheetImages } from '@/lib/sheets';
 import { formToText } from '@/lib/form';
 import { useStore } from '@/store/useStore';
 import type { AiSongAnalysis, Song } from '@/data/types';
@@ -92,12 +93,15 @@ export default function SongsScreen() {
       title: draftTitle.trim() || pendingUpload.analysis.title,
       originalKey: draftKey.trim() || pendingUpload.analysis.originalKey,
     });
-    useStore.getState().setTranscribing(song.id, true);
-    transcribeSheet(pendingUpload.images)
-      .then((abc) => {
-        if (abc) useStore.getState().setSongAbc(song.id, abc);
-      })
-      .finally(() => useStore.getState().setTranscribing(song.id, false));
+    // 원본 악보 사진을 Storage에 올려 곡에 부착 (백그라운드, 팀 공유)
+    uploadSheetImages(song.teamId, song.id, pendingUpload.images).then((urls) => {
+      if (urls.length) useStore.getState().setSongImages(song.id, urls);
+    });
+    // 오선보 자동 생성(필사)은 정확도 이슈로 보류 — 원본 악보 보기로 대체
+    // useStore.getState().setTranscribing(song.id, true);
+    // transcribeSheet(pendingUpload.images)
+    //   .then((abc) => { if (abc) useStore.getState().setSongAbc(song.id, abc); })
+    //   .finally(() => useStore.getState().setTranscribing(song.id, false));
     setPendingUpload(null);
   };
 

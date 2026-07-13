@@ -13,12 +13,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyBadge, GoldTag, SheetThumb } from '@/components/ui';
 import { C, F } from '@/constants/theme';
-import { generateSetlist, transcribeSheet } from '@/lib/ai';
+import { generateSetlist } from '@/lib/ai';
 import { notifyTeamMembers } from '@/lib/push';
+import { uploadSheetImages } from '@/lib/sheets';
 import { useStore } from '@/store/useStore';
-
-// 이미지 index → 오선보 필사 프로미스 (백그라운드 진행, 콘티 저장 후 곡에 부착)
-let pendingTranscriptions: Promise<string | null>[] = [];
 
 export default function AiReviewScreen() {
   const router = useRouter();
@@ -41,8 +39,8 @@ export default function AiReviewScreen() {
         weekday: 'long',
       });
       const imgs = images.map(({ base64, mediaType }) => ({ base64, mediaType }));
-      // 오선보 필사는 오래 걸리므로 백그라운드에서 병렬 시작
-      pendingTranscriptions = imgs.map((img) => transcribeSheet([img]));
+      // 오선보 자동 생성(필사)은 정확도 이슈로 보류 — 원본 악보 보기로 대체
+      // pendingTranscriptions = imgs.map((img) => transcribeSheet([img]));
       const teamName = useStore.getState().aiTargetTeam().name;
       const res = await generateSetlist(imgs, prompt, today, teamName);
       setAiResult(res);
@@ -87,8 +85,11 @@ export default function AiReviewScreen() {
 
   const doSave = (replace: boolean) => {
     const songsSnapshot = result?.songs ?? [];
-    const transcriptions = pendingTranscriptions;
-    const team = useStore.getState().aiTargetTeam(); // confirm 전에 캡처 (draft가 리셋됨)
+    // confirm이 draft를 비우므로 미리 캡처
+    const team = useStore.getState().aiTargetTeam();
+    const imagesSnapshot = useStore
+      .getState()
+      .aiDraft.images.map(({ base64, mediaType }) => ({ base64, mediaType }));
     const id = confirmAiSetlist(replace);
     if (!id) return;
 
@@ -99,16 +100,15 @@ export default function AiReviewScreen() {
       `${result?.title ?? '콘티'} · ${songsSnapshot.length}곡 — ${team.name}`,
     );
 
-    // 필사가 끝나는 대로 각 곡에 오선보 부착 (items 순서 = result.songs 순서)
+    // 원본 악보 사진을 각 곡에 부착 (items 순서 = result.songs 순서, ai.index = 사진 순서)
     const setlist = useStore.getState().setlistById(id);
     setlist?.items.forEach((item, i) => {
       const ai = songsSnapshot[i];
-      const p = ai ? transcriptions[ai.index] : undefined;
-      if (!p) return;
-      useStore.getState().setTranscribing(item.songId, true);
-      p.then((abc) => {
-        if (abc) useStore.getState().setSongAbc(item.songId, abc);
-      }).finally(() => useStore.getState().setTranscribing(item.songId, false));
+      const img = ai ? imagesSnapshot[ai.index] : undefined;
+      if (!img) return;
+      uploadSheetImages(setlist.teamId, item.songId, [img]).then((urls) => {
+        if (urls.length) useStore.getState().setSongImages(item.songId, urls);
+      });
     });
 
     router.replace(`/setlist/${id}`);

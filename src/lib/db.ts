@@ -66,6 +66,7 @@ export async function fetchAll(): Promise<{ teams: Team[]; songs: Song[]; setlis
     form: r.form ?? [],
     sections: r.sections ?? [],
     abc: r.abc ?? undefined,
+    imageUrls: r.image_urls?.length ? r.image_urls : undefined,
     memo: r.memo ?? undefined,
     uploadedBy: r.uploaded_by,
   }));
@@ -117,6 +118,7 @@ export async function upsertSongRemote(song: Song) {
     form: song.form,
     sections: song.sections,
     abc: song.abc ?? null,
+    image_urls: song.imageUrls ?? [],
     memo: song.memo ?? null,
     uploaded_by: song.uploadedBy,
     updated_at: new Date().toISOString(),

@@ -101,6 +101,7 @@ type Store = {
   deleteSetlist: (setlistId: string) => void;
   canEditSong: (songId: string) => boolean; // 올린 사람만 수정·삭제
   setSongAbc: (songId: string, abc: string) => void; // 백그라운드 필사 완료 시 악보 부착
+  setSongImages: (songId: string, urls: string[]) => void; // 원본 악보 사진 부착
   setTranscribing: (songId: string, on: boolean) => void;
   setItemKey: (setlistId: string, songId: string, key: string) => void;
   updateSongForm: (songId: string, form: FormChip[]) => void;
@@ -290,6 +291,13 @@ export const useStore = create<Store>()(
           songs: st.songs.map((s) => (s.id === songId ? { ...s, abc } : s)),
         }));
         push(() => patchSongRemote(songId, { abc }));
+      },
+
+      setSongImages: (songId, urls) => {
+        set((st) => ({
+          songs: st.songs.map((s) => (s.id === songId ? { ...s, imageUrls: urls } : s)),
+        }));
+        push(() => patchSongRemote(songId, { image_urls: urls }));
       },
 
       setTranscribing: (songId, on) =>

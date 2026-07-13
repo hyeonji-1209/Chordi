@@ -3,7 +3,8 @@
     "allow": [
       "Bash(node -e ' *)",
       "Bash(git commit -q -m '패키지명 com.chordi.app으로 변경 + EAS 프로젝트 연결 *)",
-      "Bash(git commit -q -m 'google-services.json을 EAS 시크릿으로 주입 \\(app.config.js\\) *)"
+      "Bash(git commit -q -m 'google-services.json을 EAS 시크릿으로 주입 \\(app.config.js\\) *)",
+      "Bash(git commit -q -m ' *)"
     ]
   },
   "enabledPlugins": {

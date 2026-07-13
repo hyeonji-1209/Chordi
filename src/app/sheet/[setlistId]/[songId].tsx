@@ -37,7 +37,7 @@ export default function SheetScreen() {
   const [textMode, setTextMode] = useState(false);
   const [formText, setFormText] = useState('');
   const [localKey, setLocalKey] = useState<string | null>(null); // 라이브러리 단독 보기용
-  const [viewMode, setViewMode] = useState<'chart' | 'score'>('chart'); // 차트 ⇄ 오선보
+  const [viewMode, setViewMode] = useState<'chart' | 'score' | 'original'>('chart'); // 차트/오선보/원본
   const [youtubeOpen, setYoutubeOpen] = useState(false); // 악보 보면서 음원 듣기
 
   const item = setlist?.items.find((it) => it.songId === songId);
@@ -141,7 +141,28 @@ export default function SheetScreen() {
       </View>
 
       {/* score (오선보) */}
-      {viewMode === 'score' && song.abc ? (
+      {viewMode === 'original' && song.imageUrls?.length ? (
+        // 원본 악보 사진 — WebView라 핀치 줌 가능. 원키 기준임을 표시
+        <View style={{ flex: 1 }}>
+          {currentKey !== song.originalKey && (
+            <View style={st.originalNotice}>
+              <Text style={st.originalNoticeText}>
+                원본은 원키({song.originalKey}) 악보예요 — {currentKey}키 코드는 차트 탭에서
+              </Text>
+            </View>
+          )}
+          <WebView
+            style={{ flex: 1, backgroundColor: '#fff' }}
+            originWhitelist={['*']}
+            source={{
+              html: `<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+<style>body{margin:0;background:#fff}img{width:100%;display:block;margin-bottom:8px}</style></head>
+<body>${song.imageUrls.map((u) => `<img src="${u}">`).join('')}</body></html>`,
+            }}
+          />
+        </View>
+      ) : viewMode === 'score' && song.abc ? (
         <SheetMusic abc={song.abc} transpose={scoreTranspose} />
       ) : (
       /* chord chart */
@@ -206,7 +227,7 @@ export default function SheetScreen() {
           >
             <Text style={[st.toolBtnLabel, youtubeOpen && { color: '#fff' }]}>▶ 음원</Text>
           </Pressable>
-          {song.abc ? (
+          {song.abc || song.imageUrls?.length ? (
             <View style={st.viewToggle}>
               <Pressable
                 onPress={() => setViewMode('chart')}
@@ -216,14 +237,28 @@ export default function SheetScreen() {
                   차트
                 </Text>
               </Pressable>
-              <Pressable
-                onPress={() => setViewMode('score')}
-                style={[st.viewToggleBtn, viewMode === 'score' && st.viewToggleBtnActive]}
-              >
-                <Text style={[st.viewToggleLabel, viewMode === 'score' && st.viewToggleLabelActive]}>
-                  ♪ 악보
-                </Text>
-              </Pressable>
+              {song.imageUrls?.length ? (
+                <Pressable
+                  onPress={() => setViewMode('original')}
+                  style={[st.viewToggleBtn, viewMode === 'original' && st.viewToggleBtnActive]}
+                >
+                  <Text
+                    style={[st.viewToggleLabel, viewMode === 'original' && st.viewToggleLabelActive]}
+                  >
+                    원본
+                  </Text>
+                </Pressable>
+              ) : null}
+              {song.abc ? (
+                <Pressable
+                  onPress={() => setViewMode('score')}
+                  style={[st.viewToggleBtn, viewMode === 'score' && st.viewToggleBtnActive]}
+                >
+                  <Text style={[st.viewToggleLabel, viewMode === 'score' && st.viewToggleLabelActive]}>
+                    ♪ 악보
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : isTranscribing ? (
             <View style={st.transcribingPill}>
@@ -548,6 +583,14 @@ const st = StyleSheet.create({
     paddingVertical: 6,
   },
   transcribingLabel: { fontFamily: F.sansMedium, fontSize: 11.5, color: C.primaryText },
+  originalNotice: {
+    backgroundColor: C.goldBg,
+    borderBottomWidth: 1,
+    borderColor: C.goldBorder,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+  },
+  originalNoticeText: { fontFamily: F.sansMedium, fontSize: 11.5, color: C.goldDark },
   navBtn: {
     flex: 1,
     backgroundColor: C.card,
