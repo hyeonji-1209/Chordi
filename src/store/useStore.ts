@@ -133,21 +133,27 @@ export const useStore = create<Store>()(
 
       initFromServer: async () => {
         if (!supabaseEnabled) return;
-        try {
-          let data = await fetchAll();
-          if (data.teams.length === 0) {
-            await createTeamRemote('내 찬양팀');
-            data = await fetchAll();
+        // 로그인 직후 서버 시계 오차(PGRST303 등)로 실패할 수 있어 재시도
+        for (let attempt = 1; attempt <= 4; attempt++) {
+          try {
+            let data = await fetchAll();
+            if (data.teams.length === 0) {
+              await createTeamRemote('내 찬양팀');
+              data = await fetchAll();
+            }
+            const keepCurrent = data.teams.find((t) => t.id === get().currentTeamId);
+            set({
+              teams: data.teams,
+              songs: data.songs,
+              setlists: data.setlists,
+              currentTeamId: keepCurrent?.id ?? data.teams[0]?.id ?? '',
+            });
+            console.log(`서버 동기화 완료 (팀 ${data.teams.length} · 곡 ${data.songs.length})`);
+            return;
+          } catch (e) {
+            console.warn(`서버 동기화 실패 (${attempt}/4):`, e instanceof Error ? e.message : e);
+            if (attempt < 4) await new Promise((r) => setTimeout(r, attempt * 2000));
           }
-          const keepCurrent = data.teams.find((t) => t.id === get().currentTeamId);
-          set({
-            teams: data.teams,
-            songs: data.songs,
-            setlists: data.setlists,
-            currentTeamId: keepCurrent?.id ?? data.teams[0]?.id ?? '',
-          });
-        } catch (e) {
-          console.warn('서버 동기화 실패:', e instanceof Error ? e.message : e);
         }
       },
 
