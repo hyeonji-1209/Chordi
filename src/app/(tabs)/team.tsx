@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Modal,
@@ -13,6 +13,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Card, ScreenTitle } from '@/components/ui';
 import { C, F } from '@/constants/theme';
+import { displayName, signOut } from '@/lib/auth';
+import { supabase, supabaseEnabled } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
 
 export default function TeamScreen() {
@@ -29,6 +31,14 @@ export default function TeamScreen() {
 
   const [modal, setModal] = useState<'create' | 'join' | null>(null);
   const [modalText, setModalText] = useState('');
+  const [account, setAccount] = useState<{ name: string; email: string | null } | null>(null);
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setAccount({ name: displayName(data.user), email: data.user.email ?? null });
+    });
+  }, []);
 
   const songCount = useMemo(
     () => songs.filter((s) => s.teamId === team.id).length,
@@ -140,6 +150,29 @@ export default function TeamScreen() {
           </Pressable>
         </View>
       </View>
+
+      {/* account */}
+      {supabaseEnabled && account && (
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13 }}>
+          <Avatar name={account.name} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: F.sansBold, fontSize: 13.5, color: C.ink }}>{account.name}</Text>
+            {account.email && (
+              <Text style={{ fontFamily: F.sans, fontSize: 11.5, color: C.mut }}>{account.email}</Text>
+            )}
+          </View>
+          <Pressable
+            onPress={() =>
+              Alert.alert('로그아웃', '로그아웃할까요?', [
+                { text: '취소', style: 'cancel' },
+                { text: '로그아웃', style: 'destructive', onPress: signOut },
+              ])
+            }
+          >
+            <Text style={{ fontFamily: F.sansMedium, fontSize: 12.5, color: C.mut }}>로그아웃</Text>
+          </Pressable>
+        </Card>
+      )}
 
       {/* dev: reset */}
       <Pressable

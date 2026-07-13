@@ -10,9 +10,12 @@ import {
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import type { Session } from '@supabase/supabase-js';
+import { LoginScreen } from '@/components/LoginScreen';
 import { C } from '@/constants/theme';
+import { supabase, supabaseEnabled } from '@/lib/supabase';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,11 +28,34 @@ export default function RootLayout() {
     NotoSansKR_700Bold,
   });
 
-  useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
-  }, [loaded]);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(!supabaseEnabled);
 
-  if (!loaded) return null;
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setAuthReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (loaded && authReady) SplashScreen.hideAsync();
+  }, [loaded, authReady]);
+
+  if (!loaded || !authReady) return null;
+
+  // Supabase 연결 시 로그인 필수 (미설정이면 기존 로컬 모드)
+  if (supabaseEnabled && !session) {
+    return (
+      <>
+        <StatusBar style="dark" />
+        <LoginScreen />
+      </>
+    );
+  }
 
   return (
     <>

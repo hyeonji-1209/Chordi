@@ -15,6 +15,7 @@ export const supabase = supabaseEnabled
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: false, // RN에서는 딥링크로 직접 처리
+        flowType: 'pkce', // 모바일 OAuth 권장 방식
       },
     })
   : null;
