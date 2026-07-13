@@ -32,6 +32,12 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 120
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Face ID로 Chordi 잠금을 해제합니다."
+        }
       ]
     ],
     "experiments": {

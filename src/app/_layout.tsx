@@ -10,10 +10,11 @@ import {
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import type { Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
+import { BiometricLock } from '@/components/BiometricLock';
 import { LoginScreen } from '@/components/LoginScreen';
 import { TeamOnboarding } from '@/components/TeamOnboarding';
 import { C } from '@/constants/theme';
@@ -34,10 +35,14 @@ export default function RootLayout() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(!supabaseEnabled);
+  // 앱을 켰을 때 이미 로그인돼 있으면 생체인증으로 잠금 (방금 로그인한 경우는 제외)
+  const [unlocked, setUnlocked] = useState(false);
+  const needsBioLock = useRef(false);
 
   useEffect(() => {
     if (!supabase) return;
     supabase.auth.getSession().then(({ data }) => {
+      needsBioLock.current = !!data.session;
       setSession(data.session);
       setAuthReady(true);
     });
@@ -78,6 +83,16 @@ export default function RootLayout() {
       <>
         <StatusBar style="dark" />
         <LoginScreen />
+      </>
+    );
+  }
+
+  // 콜드 스타트에 세션이 있었으면 생체인증(지문/얼굴)으로 잠금 해제
+  if (supabaseEnabled && session && needsBioLock.current && !unlocked) {
+    return (
+      <>
+        <StatusBar style="dark" />
+        <BiometricLock onUnlock={() => setUnlocked(true)} />
       </>
     );
   }
