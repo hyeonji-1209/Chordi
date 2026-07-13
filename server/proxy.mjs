@@ -64,12 +64,17 @@ const server = http.createServer(async (req, res) => {
       token = await getToken(true);
       upstream = await forward(req, body, token);
     }
-    const text = await upstream.text();
     console.log(`${req.method} ${req.url} → ${upstream.status}`);
     res.writeHead(upstream.status, {
       'content-type': upstream.headers.get('content-type') ?? 'application/json',
     });
-    res.end(text);
+    // SSE 스트리밍 응답을 도착하는 대로 흘려보낸다
+    if (upstream.body) {
+      for await (const chunk of upstream.body) res.write(chunk);
+      res.end();
+    } else {
+      res.end(await upstream.text());
+    }
   } catch (e) {
     console.error(e);
     res.writeHead(502, { 'content-type': 'application/json' });

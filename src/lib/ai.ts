@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import Constants from 'expo-constants';
+import { fetch as expoFetch } from 'expo/fetch';
 import { z } from 'zod';
 import type {
   AiSetlistEdit,
@@ -117,10 +118,13 @@ function proxyBaseUrl(): string | null {
 function getClient(): Anthropic {
   if (client) return client;
 
+  // RN 기본 fetch는 응답 스트리밍을 지원하지 않으므로 expo/fetch를 사용
+  const fetchImpl = expoFetch as unknown as typeof globalThis.fetch;
+
   const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
   if (apiKey) {
     // API 키가 있으면 직접 호출 (프로토타입 전용 — 배포 시 서버 프록시로)
-    client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+    client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true, fetch: fetchImpl });
     return client;
   }
 
@@ -132,8 +136,47 @@ function getClient(): Anthropic {
       'AI 연결이 없어요. 맥에서 `npm run proxy`를 실행하거나 .env에 EXPO_PUBLIC_ANTHROPIC_API_KEY를 넣어주세요.',
     );
   }
-  client = new Anthropic({ apiKey: 'chordi-local-proxy', baseURL, dangerouslyAllowBrowser: true });
+  client = new Anthropic({
+    apiKey: 'chordi-local-proxy',
+    baseURL,
+    dangerouslyAllowBrowser: true,
+    fetch: fetchImpl,
+  });
   return client;
+}
+
+/** 스트리밍 + 구조화 출력 공통 호출 (긴 생성은 API가 스트리밍을 요구함) */
+async function callStructured<S extends z.ZodTypeAny>(opts: {
+  system: string;
+  content: Anthropic.ContentBlockParam[] | string;
+  schema: S;
+  maxTokens: number;
+}): Promise<z.infer<S>> {
+  const stream = getClient().messages.stream({
+    model: 'claude-opus-4-8',
+    max_tokens: opts.maxTokens,
+    system: opts.system,
+    messages: [{ role: 'user', content: opts.content }],
+    output_config: { format: zodOutputFormat(opts.schema) },
+  });
+  const msg = await stream.finalMessage();
+
+  if (msg.stop_reason === 'refusal') {
+    throw new Error('요청이 거절되었어요. 다른 사진이나 문구로 다시 시도해 주세요.');
+  }
+  if (msg.stop_reason === 'max_tokens') {
+    throw new Error('응답이 너무 길어 잘렸어요. 사진 수를 줄여 다시 시도해 주세요.');
+  }
+
+  const text = msg.content
+    .filter((b): b is Anthropic.TextBlock => b.type === 'text')
+    .map((b) => b.text)
+    .join('');
+  try {
+    return opts.schema.parse(JSON.parse(text));
+  } catch {
+    throw new Error('AI 응답을 해석하지 못했어요. 다시 시도해 주세요.');
+  }
 }
 
 type ImageInput = { base64: string; mediaType: string };
@@ -154,52 +197,30 @@ export async function generateSetlist(
   userPrompt: string,
   today: string,
 ): Promise<AiSetlistResult> {
-  const response = await getClient().messages.parse({
-    model: 'claude-opus-4-8',
-    max_tokens: 32000,
+  return callStructured({
     system: SETLIST_SYSTEM,
-    messages: [
+    maxTokens: 32000,
+    schema: AiSetlistSchema,
+    content: [
+      ...imageBlocks(images),
       {
-        role: 'user',
-        content: [
-          ...imageBlocks(images),
-          {
-            type: 'text',
-            text: `오늘 날짜: ${today}\n악보 ${images.length}장을 보냈어.\n\n하고 싶은 말:\n${userPrompt}`,
-          },
-        ],
+        type: 'text',
+        text: `오늘 날짜: ${today}\n악보 ${images.length}장을 보냈어.\n\n하고 싶은 말:\n${userPrompt}`,
       },
     ],
-    output_config: { format: zodOutputFormat(AiSetlistSchema) },
   });
-
-  if (!response.parsed_output) {
-    throw new Error('AI 응답을 해석하지 못했어요. 다시 시도해 주세요.');
-  }
-  return response.parsed_output as AiSetlistResult;
 }
 
 export async function analyzeSong(images: ImageInput[]): Promise<AiSongAnalysis> {
-  const response = await getClient().messages.parse({
-    model: 'claude-opus-4-8',
-    max_tokens: 16000,
+  return callStructured({
     system: SONG_SYSTEM,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          ...imageBlocks(images),
-          { type: 'text', text: `이 곡 악보 ${images.length}장을 분석해줘.` },
-        ],
-      },
+    maxTokens: 16000,
+    schema: AiSongAnalysisSchema,
+    content: [
+      ...imageBlocks(images),
+      { type: 'text', text: `이 곡 악보 ${images.length}장을 분석해줘.` },
     ],
-    output_config: { format: zodOutputFormat(AiSongAnalysisSchema) },
   });
-
-  if (!response.parsed_output) {
-    throw new Error('악보를 분석하지 못했어요. 다시 시도해 주세요.');
-  }
-  return response.parsed_output as AiSongAnalysis;
 }
 
 export async function editSetlist(
@@ -219,21 +240,10 @@ export async function editSetlist(
     };
   });
 
-  const response = await getClient().messages.parse({
-    model: 'claude-opus-4-8',
-    max_tokens: 8000,
+  return callStructured({
     system: EDIT_SYSTEM,
-    messages: [
-      {
-        role: 'user',
-        content: `현재 콘티:\n${JSON.stringify(current, null, 2)}\n\n수정 요청: ${command}`,
-      },
-    ],
-    output_config: { format: zodOutputFormat(AiSetlistEditSchema) },
+    maxTokens: 8000,
+    schema: AiSetlistEditSchema,
+    content: `현재 콘티:\n${JSON.stringify(current, null, 2)}\n\n수정 요청: ${command}`,
   });
-
-  if (!response.parsed_output) {
-    throw new Error('수정 요청을 해석하지 못했어요. 다시 말해 주세요.');
-  }
-  return response.parsed_output as AiSetlistEdit;
 }
