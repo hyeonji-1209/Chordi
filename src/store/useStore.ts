@@ -1,7 +1,21 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
+import { Alert } from 'react-native';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import {
+  createTeamRemote,
+  deleteSetlistRemote,
+  deleteSongRemote,
+  fetchAll,
+  joinTeamRemote,
+  patchItemRemote,
+  patchSongRemote,
+  upsertSetlistRemote,
+  upsertSongRemote,
+} from '@/lib/db';
 import { stringsToForm } from '@/lib/form';
+import { supabaseEnabled } from '@/lib/supabase';
 import type {
   AiSetlistEdit,
   AiSetlistResult,
@@ -46,12 +60,28 @@ const SEED_TEAM: Team = {
 
 const ME = 'me';
 
+/** 서버 모드면 UUID, 로컬 모드면 접두사 id */
+function genId(prefix: string): string {
+  return supabaseEnabled ? Crypto.randomUUID() : `${prefix}-${Date.now()}`;
+}
+
+/** 서버 반영 (실패는 로그만 — 로컬 상태가 우선) */
+function push(work: () => Promise<unknown>) {
+  if (!supabaseEnabled) return;
+  work().catch((e) => console.warn('서버 반영 실패:', e?.message ?? e));
+}
+
 type Store = {
   teams: Team[];
   currentTeamId: string;
   songs: Song[];
   setlists: Setlist[];
   aiDraft: AiDraft;
+  currentUserId: string | null; // 로그인 사용자 (서버 모드)
+
+  setCurrentUser: (userId: string) => void;
+  initFromServer: () => Promise<void>; // 서버 데이터로 교체 (팀 없으면 기본 팀 생성)
+  meId: () => string;
 
   currentTeam: () => Team;
   songById: (id: string) => Song | undefined;
@@ -96,6 +126,30 @@ export const useStore = create<Store>()(
       setlists: [],
       aiDraft: EMPTY_DRAFT,
       transcribing: {},
+      currentUserId: null,
+
+      setCurrentUser: (userId) => set({ currentUserId: userId }),
+      meId: () => get().currentUserId ?? ME,
+
+      initFromServer: async () => {
+        if (!supabaseEnabled) return;
+        try {
+          let data = await fetchAll();
+          if (data.teams.length === 0) {
+            await createTeamRemote('내 찬양팀');
+            data = await fetchAll();
+          }
+          const keepCurrent = data.teams.find((t) => t.id === get().currentTeamId);
+          set({
+            teams: data.teams,
+            songs: data.songs,
+            setlists: data.setlists,
+            currentTeamId: keepCurrent?.id ?? data.teams[0]?.id ?? '',
+          });
+        } catch (e) {
+          console.warn('서버 동기화 실패:', e instanceof Error ? e.message : e);
+        }
+      },
 
       currentTeam: () => {
         const { teams, currentTeamId } = get();
@@ -107,6 +161,18 @@ export const useStore = create<Store>()(
       switchTeam: (teamId) => set({ currentTeamId: teamId }),
 
       addTeam: (name) => {
+        if (supabaseEnabled) {
+          (async () => {
+            try {
+              const id = await createTeamRemote(name);
+              await get().initFromServer();
+              set({ currentTeamId: id });
+            } catch (e) {
+              Alert.alert('팀 생성 실패', e instanceof Error ? e.message : '오류가 발생했어요');
+            }
+          })();
+          return;
+        }
         const team: Team = {
           id: `team-${Date.now()}`,
           name,
@@ -119,6 +185,23 @@ export const useStore = create<Store>()(
       },
 
       joinTeam: (code) => {
+        if (supabaseEnabled) {
+          (async () => {
+            try {
+              const id = await joinTeamRemote(code);
+              await get().initFromServer();
+              set({ currentTeamId: id });
+            } catch (e) {
+              Alert.alert(
+                '입장 실패',
+                e instanceof Error && e.message.includes('초대코드')
+                  ? '초대코드가 올바르지 않아요'
+                  : '오류가 발생했어요',
+              );
+            }
+          })();
+          return;
+        }
         const team: Team = {
           id: `team-${Date.now()}`,
           name: `팀 ${code.toUpperCase()}`,
@@ -136,7 +219,7 @@ export const useStore = create<Store>()(
           (s) => s.teamId === st.currentTeamId && s.title === a.title,
         );
         const song: Song = {
-          id: existing?.id ?? `song-${Date.now()}`,
+          id: existing?.id ?? genId('song'),
           teamId: st.currentTeamId,
           title: a.title,
           originalKey: a.originalKey,
@@ -149,22 +232,30 @@ export const useStore = create<Store>()(
           form: stringsToForm(a.form),
           sections: a.sections,
           abc: a.abc ?? undefined,
-          uploadedBy: existing?.uploadedBy ?? ME,
+          uploadedBy: existing?.uploadedBy ?? get().meId(),
         };
         set({
           songs: existing
             ? st.songs.map((s) => (s.id === existing.id ? song : s)) // 같은 제목이면 새 분석으로 갱신
             : [song, ...st.songs],
         });
+        push(() => upsertSongRemote(song));
         return song;
       },
 
-      updateSong: (songId, patch) =>
+      updateSong: (songId, patch) => {
         set((st) => ({
           songs: st.songs.map((s) => (s.id === songId ? { ...s, ...patch } : s)),
-        })),
+        }));
+        push(() =>
+          patchSongRemote(songId, {
+            ...(patch.title !== undefined && { title: patch.title }),
+            ...(patch.originalKey !== undefined && { original_key: patch.originalKey }),
+          }),
+        );
+      },
 
-      deleteSong: (songId) =>
+      deleteSong: (songId) => {
         set((st) => ({
           songs: st.songs.filter((s) => s.id !== songId),
           // 콘티에서도 해당 곡 제거
@@ -172,21 +263,27 @@ export const useStore = create<Store>()(
             ...sl,
             items: sl.items.filter((it) => it.songId !== songId),
           })),
-        })),
+        }));
+        push(() => deleteSongRemote(songId));
+      },
 
-      deleteSetlist: (setlistId) =>
-        set((st) => ({ setlists: st.setlists.filter((sl) => sl.id !== setlistId) })),
+      deleteSetlist: (setlistId) => {
+        set((st) => ({ setlists: st.setlists.filter((sl) => sl.id !== setlistId) }));
+        push(() => deleteSetlistRemote(setlistId));
+      },
 
       canEditSong: (songId) => {
         const song = get().songById(songId);
         if (!song) return false;
-        return (song.uploadedBy ?? ME) === ME; // 올린 사람만 (예전 데이터는 내가 올린 것으로 간주)
+        return (song.uploadedBy ?? get().meId()) === get().meId(); // 올린 사람만
       },
 
-      setSongAbc: (songId, abc) =>
+      setSongAbc: (songId, abc) => {
         set((st) => ({
           songs: st.songs.map((s) => (s.id === songId ? { ...s, abc } : s)),
-        })),
+        }));
+        push(() => patchSongRemote(songId, { abc }));
+      },
 
       setTranscribing: (songId, on) =>
         set((st) => {
@@ -196,7 +293,7 @@ export const useStore = create<Store>()(
           return { transcribing: next };
         }),
 
-      setItemKey: (setlistId, songId, key) =>
+      setItemKey: (setlistId, songId, key) => {
         set((st) => ({
           setlists: st.setlists.map((sl) =>
             sl.id !== setlistId
@@ -206,14 +303,18 @@ export const useStore = create<Store>()(
                   items: sl.items.map((it) => (it.songId === songId ? { ...it, key } : it)),
                 },
           ),
-        })),
+        }));
+        push(() => patchItemRemote(setlistId, songId, { key }));
+      },
 
-      updateSongForm: (songId, form) =>
+      updateSongForm: (songId, form) => {
         set((st) => ({
           songs: st.songs.map((s) => (s.id === songId ? { ...s, form } : s)),
-        })),
+        }));
+        push(() => patchSongRemote(songId, { form }));
+      },
 
-      applySetlistEdits: (setlistId, edit) =>
+      applySetlistEdits: (setlistId, edit) => {
         set((st) => ({
           setlists: st.setlists.map((sl) => {
             if (sl.id !== setlistId) return sl;
@@ -231,7 +332,17 @@ export const useStore = create<Store>()(
               }),
             };
           }),
-        })),
+        }));
+        push(async () => {
+          for (const it of edit.items) {
+            await patchItemRemote(setlistId, it.songId, {
+              key: it.key,
+              note: it.note,
+              linked_to_prev: it.linkedToPrev,
+            });
+          }
+        });
+      },
 
       setAiImages: (images) => set((st) => ({ aiDraft: { ...st.aiDraft, images } })),
       setAiPrompt: (prompt) => set((st) => ({ aiDraft: { ...st.aiDraft, prompt } })),
@@ -279,7 +390,6 @@ export const useStore = create<Store>()(
 
         const team = st.aiTargetTeam(); // 콘티를 올릴 팀 (예배)
         const leader = team.members.find((m) => m.leader)?.name ?? team.members[0]?.name ?? '';
-        const now = Date.now();
         const newSongs: Song[] = [];
         const updatedSongs = new Map<string, Song>();
 
@@ -298,7 +408,7 @@ export const useStore = create<Store>()(
             updatedSongs.set(song.id, song);
           } else {
             song = {
-              id: `song-${now}-${ai.index}`,
+              id: genId('song'),
               teamId: team.id,
               title,
               originalKey: ai.originalKey ?? ai.targetKey,
@@ -310,7 +420,7 @@ export const useStore = create<Store>()(
               form: stringsToForm(ai.form),
               sections: ai.sections,
               abc: ai.abc ?? undefined,
-              uploadedBy: ME,
+              uploadedBy: get().meId(),
             };
             newSongs.push(song);
           }
@@ -323,7 +433,7 @@ export const useStore = create<Store>()(
         });
 
         const setlist: Setlist = {
-          id: `sl-${now}`,
+          id: genId('sl'),
           teamId: team.id,
           title: result.title,
           subtitle: `${team.name} · 인도 ${leader} · ${items.length}곡`,
@@ -332,20 +442,33 @@ export const useStore = create<Store>()(
         };
 
         // 같은 제목(같은 예배) 콘티 교체
-        const remaining = replace
-          ? st.setlists.filter((sl) => !(sl.teamId === team.id && sl.title === setlist.title))
-          : st.setlists;
+        const dup = st.setlists.find((sl) => sl.teamId === team.id && sl.title === setlist.title);
+        const remaining = replace ? st.setlists.filter((sl) => sl.id !== dup?.id) : st.setlists;
 
         set({
           songs: [...newSongs, ...st.songs.map((s) => updatedSongs.get(s.id) ?? s)],
           setlists: [setlist, ...remaining],
           aiDraft: EMPTY_DRAFT,
         });
+
+        const me = get().meId();
+        push(async () => {
+          for (const song of [...newSongs, ...updatedSongs.values()]) {
+            await upsertSongRemote(song);
+          }
+          await upsertSetlistRemote(setlist, me, replace ? dup?.id : undefined);
+        });
+
         return setlist.id;
       },
 
       resetAll: () => {
-        // 저장소 파일을 지우고 메모리 상태도 시드로 리셋
+        if (supabaseEnabled) {
+          // 서버 모드: 로컬 캐시를 버리고 서버 데이터로 새로 받기
+          get().initFromServer();
+          return;
+        }
+        // 로컬 모드: 저장소 파일을 지우고 시드로 리셋
         AsyncStorage.removeItem('chordi-store').catch(() => {});
         set({
           teams: [SEED_TEAM],

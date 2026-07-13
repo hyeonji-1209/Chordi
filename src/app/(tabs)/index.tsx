@@ -23,7 +23,8 @@ export default function HomeScreen() {
     () => songs.filter((s) => s.teamId === team.id).slice(0, 2),
     [songs, team.id],
   );
-  const me = team.members.find((m) => m.id === 'me') ?? team.members[0];
+  const meId = useStore((s) => s.meId());
+  const me = team.members.find((m) => m.id === meId) ?? team.members[0];
 
   return (
     <ScrollView

@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { signInWithProvider, type Provider } from '@/lib/auth';
@@ -35,7 +36,10 @@ export function LoginScreen() {
           {busy === 'kakao' ? (
             <ActivityIndicator size="small" color="#191919" />
           ) : (
-            <Text style={[st.btnLabel, { color: '#191919' }]}>카카오로 시작하기</Text>
+            <View style={st.btnRow}>
+              <Ionicons name="chatbubble" size={17} color="#191919" />
+              <Text style={[st.btnLabel, { color: '#191919' }]}>카카오로 시작하기</Text>
+            </View>
           )}
         </Pressable>
         <Pressable
@@ -46,7 +50,10 @@ export function LoginScreen() {
           {busy === 'google' ? (
             <ActivityIndicator size="small" color={C.ink} />
           ) : (
-            <Text style={[st.btnLabel, { color: C.ink }]}>Google로 시작하기</Text>
+            <View style={st.btnRow}>
+              <Ionicons name="logo-google" size={17} color="#4285F4" />
+              <Text style={[st.btnLabel, { color: C.ink }]}>Google로 시작하기</Text>
+            </View>
           )}
         </Pressable>
       </View>
@@ -76,6 +83,7 @@ const st = StyleSheet.create({
   },
   kakao: { backgroundColor: '#FEE500' },
   google: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.border },
+  btnRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   btnLabel: { fontFamily: F.sansBold, fontSize: 15 },
   footer: { fontFamily: F.sans, fontSize: 12, color: C.faint, textAlign: 'center' },
 });

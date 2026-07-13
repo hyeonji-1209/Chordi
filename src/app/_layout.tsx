@@ -16,6 +16,7 @@ import type { Session } from '@supabase/supabase-js';
 import { LoginScreen } from '@/components/LoginScreen';
 import { C } from '@/constants/theme';
 import { supabase, supabaseEnabled } from '@/lib/supabase';
+import { useStore } from '@/store/useStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,6 +41,14 @@ export default function RootLayout() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
   }, []);
+
+  // 로그인되면 서버 데이터로 동기화
+  useEffect(() => {
+    if (session) {
+      useStore.getState().setCurrentUser(session.user.id);
+      useStore.getState().initFromServer();
+    }
+  }, [session]);
 
   useEffect(() => {
     if (loaded && authReady) SplashScreen.hideAsync();
