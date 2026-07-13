@@ -45,3 +45,6 @@ example
 # env (API keys)
 .env
 !.env.example
+
+# Firebase (푸시용 — 각자 발급)
+google-services.json
