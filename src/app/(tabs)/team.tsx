@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -21,6 +22,7 @@ export default function TeamScreen() {
   const switchTeam = useStore((s) => s.switchTeam);
   const addTeam = useStore((s) => s.addTeam);
   const joinTeam = useStore((s) => s.joinTeam);
+  const resetAll = useStore((s) => s.resetAll);
   const team = useStore((s) => s.currentTeam());
   const songs = useStore((s) => s.songs);
   const setlists = useStore((s) => s.setlists);
@@ -138,6 +140,19 @@ export default function TeamScreen() {
           </Pressable>
         </View>
       </View>
+
+      {/* dev: reset */}
+      <Pressable
+        onPress={() =>
+          Alert.alert('모든 데이터 초기화', '팀·곡·콘티가 전부 지워져요. 되돌릴 수 없어요.', [
+            { text: '취소', style: 'cancel' },
+            { text: '초기화', style: 'destructive', onPress: resetAll },
+          ])
+        }
+        style={{ alignItems: 'center', paddingVertical: 10 }}
+      >
+        <Text style={{ fontFamily: F.sans, fontSize: 12, color: C.faint }}>모든 데이터 초기화</Text>
+      </Pressable>
 
       {/* create / join modal */}
       <Modal visible={modal !== null} transparent animationType="fade" onRequestClose={() => setModal(null)}>

@@ -62,6 +62,7 @@ type Store = {
   setAiResult: (result: AiSetlistResult | null, error?: string | null) => void;
   resolveAiSong: (index: number, title: string) => void;
   confirmAiSetlist: () => string; // returns new setlist id
+  resetAll: () => void; // 모든 데이터 초기화 (개발/테스트용)
 };
 
 export const useStore = create<Store>()(
@@ -241,6 +242,15 @@ export const useStore = create<Store>()(
         });
         return setlist.id;
       },
+
+      resetAll: () =>
+        set({
+          teams: [SEED_TEAM],
+          currentTeamId: SEED_TEAM.id,
+          songs: [],
+          setlists: [],
+          aiDraft: EMPTY_DRAFT,
+        }),
     }),
     {
       name: 'chordi-store',
