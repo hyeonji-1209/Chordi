@@ -67,7 +67,7 @@ export async function registerPushToken(): Promise<void> {
       user_id: userId,
       updated_at: new Date().toISOString(),
     });
-    console.log('[push] 토큰 등록 완료');
+    console.log('[push] 토큰 등록 완료:', token);
   } catch (e) {
     console.log('[push] 토큰 등록 스킵:', e instanceof Error ? e.message : e);
   }
