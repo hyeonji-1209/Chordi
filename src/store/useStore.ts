@@ -243,14 +243,17 @@ export const useStore = create<Store>()(
         return setlist.id;
       },
 
-      resetAll: () =>
+      resetAll: () => {
+        // 저장소 파일을 지우고 메모리 상태도 시드로 리셋
+        AsyncStorage.removeItem('chordi-store').catch(() => {});
         set({
           teams: [SEED_TEAM],
           currentTeamId: SEED_TEAM.id,
           songs: [],
           setlists: [],
           aiDraft: EMPTY_DRAFT,
-        }),
+        });
+      },
     }),
     {
       name: 'chordi-store',
