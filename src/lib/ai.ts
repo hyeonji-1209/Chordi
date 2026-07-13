@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
+import Constants from 'expo-constants';
 import { z } from 'zod';
 import type {
   AiSetlistEdit,
@@ -105,17 +106,33 @@ const EDIT_SYSTEM = `너는 찬양팀 콘티 수정 도우미다.
 
 let client: Anthropic | null = null;
 
+/** Metro 개발 서버 호스트(맥)에서 프록시 주소를 유도. 예: "192.168.0.5:8081" → "http://192.168.0.5:8787" */
+function proxyBaseUrl(): string | null {
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (!hostUri) return null;
+  const host = hostUri.split(':')[0];
+  return `http://${host}:8787`;
+}
+
 function getClient(): Anthropic {
+  if (client) return client;
+
   const apiKey = process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  if (apiKey) {
+    // API 키가 있으면 직접 호출 (프로토타입 전용 — 배포 시 서버 프록시로)
+    client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+    return client;
+  }
+
+  // 키가 없으면 맥에서 도는 로컬 프록시(npm run proxy)를 사용.
+  // 프록시가 ant 로컬 OAuth 프로필로 인증을 처리한다.
+  const baseURL = process.env.EXPO_PUBLIC_AI_PROXY_URL ?? proxyBaseUrl();
+  if (!baseURL) {
     throw new Error(
-      'EXPO_PUBLIC_ANTHROPIC_API_KEY가 설정되지 않았어요. 프로젝트 루트의 .env 파일에 키를 넣어주세요.',
+      'AI 연결이 없어요. 맥에서 `npm run proxy`를 실행하거나 .env에 EXPO_PUBLIC_ANTHROPIC_API_KEY를 넣어주세요.',
     );
   }
-  if (!client) {
-    // 프로토타입: 앱에서 직접 호출. 배포 시에는 서버 프록시로 옮길 것.
-    client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
-  }
+  client = new Anthropic({ apiKey: 'chordi-local-proxy', baseURL, dangerouslyAllowBrowser: true });
   return client;
 }
 
