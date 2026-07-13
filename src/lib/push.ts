@@ -1,22 +1,41 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
-// 포그라운드에서도 알림 표시
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Expo Go(SDK 53+)는 원격 푸시 미지원 — import 자체가 던지므로 지연 로딩 + 감지 스킵
+const isExpoGo = Constants.executionEnvironment === 'storeClient';
 
-/** 이 기기의 푸시 토큰을 발급받아 DB에 등록. Expo Go 등 미지원 환경에서는 조용히 스킵 */
+type NotificationsModule = typeof import('expo-notifications');
+let cached: NotificationsModule | null = null;
+
+async function getNotifications(): Promise<NotificationsModule | null> {
+  if (isExpoGo || !Device.isDevice) return null;
+  if (cached) return cached;
+  try {
+    const mod = await import('expo-notifications');
+    // 포그라운드에서도 알림 표시
+    mod.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+    cached = mod;
+    return mod;
+  } catch (e) {
+    console.log('[push] 알림 모듈 사용 불가:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+/** 이 기기의 푸시 토큰을 발급받아 DB에 등록. 미지원 환경(Expo Go 등)은 조용히 스킵 */
 export async function registerPushToken(): Promise<void> {
-  if (!supabase || !Device.isDevice) return;
+  if (!supabase) return;
+  const Notifications = await getNotifications();
+  if (!Notifications) return;
   try {
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
@@ -50,12 +69,11 @@ export async function registerPushToken(): Promise<void> {
     });
     console.log('[push] 토큰 등록 완료');
   } catch (e) {
-    // Expo Go(SDK 53+)는 원격 푸시 미지원 — 개발 빌드에서만 동작
     console.log('[push] 토큰 등록 스킵:', e instanceof Error ? e.message : e);
   }
 }
 
-/** 팀 멤버들(나 제외)에게 푸시 발송 */
+/** 팀 멤버들(나 제외)에게 푸시 발송 — Expo Push API 직접 호출이라 어디서든 동작 */
 export async function notifyTeamMembers(
   memberIds: string[],
   title: string,
@@ -89,7 +107,7 @@ export async function notifyTeamMembers(
         body: JSON.stringify(messages.slice(i, i + 100)),
       });
     }
-    console.log(`[push] ${messages.length}명에게 알림 발송`);
+    console.log(`[push] ${messages.length}개 기기로 알림 발송`);
   } catch (e) {
     console.warn('[push] 발송 실패:', e instanceof Error ? e.message : e);
   }
