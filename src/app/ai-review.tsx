@@ -13,8 +13,11 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyBadge, GoldTag, SheetThumb } from '@/components/ui';
 import { C, F } from '@/constants/theme';
-import { generateSetlist } from '@/lib/ai';
+import { generateSetlist, transcribeSheet } from '@/lib/ai';
 import { useStore } from '@/store/useStore';
+
+// 이미지 index → 오선보 필사 프로미스 (백그라운드 진행, 콘티 저장 후 곡에 부착)
+let pendingTranscriptions: Promise<string | null>[] = [];
 
 export default function AiReviewScreen() {
   const router = useRouter();
@@ -36,11 +39,10 @@ export default function AiReviewScreen() {
         day: 'numeric',
         weekday: 'long',
       });
-      const res = await generateSetlist(
-        images.map(({ base64, mediaType }) => ({ base64, mediaType })),
-        prompt,
-        today,
-      );
+      const imgs = images.map(({ base64, mediaType }) => ({ base64, mediaType }));
+      // 오선보 필사는 오래 걸리므로 백그라운드에서 병렬 시작
+      pendingTranscriptions = imgs.map((img) => transcribeSheet([img]));
+      const res = await generateSetlist(imgs, prompt, today);
       setAiResult(res);
     } catch (e) {
       setAiResult(null, e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요.');
@@ -65,8 +67,22 @@ export default function AiReviewScreen() {
   };
 
   const save = () => {
+    const songsSnapshot = result?.songs ?? [];
+    const transcriptions = pendingTranscriptions;
     const id = confirmAiSetlist();
-    if (id) router.replace(`/setlist/${id}`);
+    if (!id) return;
+
+    // 필사가 끝나는 대로 각 곡에 오선보 부착 (items 순서 = result.songs 순서)
+    const setlist = useStore.getState().setlistById(id);
+    setlist?.items.forEach((item, i) => {
+      const ai = songsSnapshot[i];
+      const p = ai ? transcriptions[ai.index] : undefined;
+      p?.then((abc) => {
+        if (abc) useStore.getState().setSongAbc(item.songId, abc);
+      });
+    });
+
+    router.replace(`/setlist/${id}`);
   };
 
   return (

@@ -52,6 +52,7 @@ type Store = {
   joinTeam: (code: string) => void;
 
   addSong: (analysis: AiSongAnalysis) => Song;
+  setSongAbc: (songId: string, abc: string) => void; // 백그라운드 필사 완료 시 악보 부착
   setItemKey: (setlistId: string, songId: string, key: string) => void;
   updateSongForm: (songId: string, form: FormChip[]) => void;
   applySetlistEdits: (setlistId: string, edit: AiSetlistEdit) => void;
@@ -134,6 +135,11 @@ export const useStore = create<Store>()(
         });
         return song;
       },
+
+      setSongAbc: (songId, abc) =>
+        set((st) => ({
+          songs: st.songs.map((s) => (s.id === songId ? { ...s, abc } : s)),
+        })),
 
       setItemKey: (setlistId, songId, key) =>
         set((st) => ({

@@ -297,52 +297,46 @@ function imageBlocks(images: ImageInput[]): Anthropic.ImageBlockParam[] {
   }));
 }
 
+/** 콘티 해석 (빠른 경로 — 오선보 필사는 transcribeSheet를 백그라운드로 별도 실행) */
 export async function generateSetlist(
   images: ImageInput[],
   userPrompt: string,
   today: string,
 ): Promise<AiSetlistResult> {
-  // 콘티 해석과 곡별 악보 필사를 병렬로 실행
-  const [base, abcs] = await Promise.all([
-    callStructured({
-      system: SETLIST_SYSTEM,
-      maxTokens: 32000,
-      schema: AiSetlistSchema,
-      content: [
-        ...imageBlocks(images),
-        {
-          type: 'text',
-          text: `오늘 날짜: ${today}\n악보 ${images.length}장을 보냈어.\n\n하고 싶은 말:\n${userPrompt}`,
-        },
-      ],
-    }),
-    Promise.all(images.map((img) => transcribeSheet([img]))),
-  ]);
+  const base = await callStructured({
+    system: SETLIST_SYSTEM,
+    maxTokens: 32000,
+    schema: AiSetlistSchema,
+    content: [
+      ...imageBlocks(images),
+      {
+        type: 'text',
+        text: `오늘 날짜: ${today}\n악보 ${images.length}장을 보냈어.\n\n하고 싶은 말:\n${userPrompt}`,
+      },
+    ],
+  });
 
   if (base.rejection) throw new Error(base.rejection);
 
   return {
     ...base,
-    songs: base.songs.map((s) => ({ ...s, abc: abcs[s.index] ?? null })),
+    songs: base.songs.map((s) => ({ ...s, abc: null })),
   };
 }
 
+/** 곡 정보·코드차트 분석 (빠른 경로 — 오선보 필사는 별도) */
 export async function analyzeSong(images: ImageInput[]): Promise<AiSongAnalysis> {
-  // 메타데이터 분석과 악보 필사를 병렬로
-  const [meta, abc] = await Promise.all([
-    callStructured({
-      system: SONG_SYSTEM,
-      maxTokens: 32000,
-      schema: AiSongAnalysisSchema,
-      content: [
-        ...imageBlocks(images),
-        { type: 'text', text: `이 곡 악보 ${images.length}장을 분석해줘.` },
-      ],
-    }),
-    transcribeSheet(images),
-  ]);
+  const meta = await callStructured({
+    system: SONG_SYSTEM,
+    maxTokens: 32000,
+    schema: AiSongAnalysisSchema,
+    content: [
+      ...imageBlocks(images),
+      { type: 'text', text: `이 곡 악보 ${images.length}장을 분석해줘.` },
+    ],
+  });
   if (meta.rejection) throw new Error(meta.rejection);
-  return { ...meta, abc };
+  return { ...meta, abc: null };
 }
 
 export async function editSetlist(

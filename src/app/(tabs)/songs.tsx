@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GoldTag, ScreenTitle, SheetThumb } from '@/components/ui';
 import { C, F } from '@/constants/theme';
-import { analyzeSong } from '@/lib/ai';
+import { analyzeSong, transcribeSheet } from '@/lib/ai';
 import { useStore } from '@/store/useStore';
 
 const FILTERS = ['전체', '빠른 찬양', '잔잔한', '성가', '키: G'] as const;
@@ -65,7 +65,14 @@ export default function SongsScreen() {
     try {
       const analysis = await analyzeSong(images);
       const song = addSong(analysis);
-      Alert.alert('악보 등록 완료', `"${song.title}" (${song.originalKey}키)를 라이브러리에 추가했어요.`);
+      // 오선보 필사는 오래 걸리므로 백그라운드에서 — 끝나면 곡에 자동 부착
+      transcribeSheet(images).then((abc) => {
+        if (abc) useStore.getState().setSongAbc(song.id, abc);
+      });
+      Alert.alert(
+        '악보 등록 완료',
+        `"${song.title}" (${song.originalKey}키)를 추가했어요.\n오선보는 백그라운드에서 그려지는 중 — 잠시 뒤 연주 모드에 ♪악보 토글이 생겨요.`,
+      );
     } catch (e) {
       Alert.alert('분석 실패', e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요.');
     } finally {
