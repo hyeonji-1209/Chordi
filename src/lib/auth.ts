@@ -51,6 +51,33 @@ export async function signInWithProvider(provider: Provider): Promise<boolean> {
   throw new Error(errDesc ?? '로그인 응답을 해석하지 못했어요');
 }
 
+/**
+ * 딥링크로 들어온 인증 콜백 처리.
+ * Expo Go에서는 exp:// 리다이렉트가 앱을 리로드시켜 openAuthSessionAsync가
+ * dismiss로 끝나므로, (재)시작 시 초기 URL과 url 이벤트에서 코드를 주워 세션을 완성한다.
+ */
+export async function handleAuthUrl(url: string | null | undefined): Promise<void> {
+  if (!supabase || !url || !url.includes('auth-callback')) return;
+  console.log('[auth] 딥링크 콜백 수신:', url);
+  const parsed = Linking.parse(url);
+  const code = parsed.queryParams?.code;
+  if (typeof code === 'string' && code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) console.warn('[auth] 딥링크 세션 교환 실패:', error.message);
+    return;
+  }
+  // implicit 폴백 (#access_token=...)
+  const hash = url.split('#')[1];
+  if (hash) {
+    const params = new URLSearchParams(hash);
+    const access_token = params.get('access_token');
+    const refresh_token = params.get('refresh_token');
+    if (access_token && refresh_token) {
+      await supabase.auth.setSession({ access_token, refresh_token });
+    }
+  }
+}
+
 export async function signOut() {
   await supabase?.auth.signOut();
 }

@@ -13,8 +13,10 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import type { Session } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import { LoginScreen } from '@/components/LoginScreen';
 import { C } from '@/constants/theme';
+import { handleAuthUrl } from '@/lib/auth';
 import { supabase, supabaseEnabled } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
 
@@ -39,7 +41,15 @@ export default function RootLayout() {
       setAuthReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
-    return () => sub.subscription.unsubscribe();
+
+    // Expo Go: 인증 리다이렉트가 앱 리로드로 이어지므로 딥링크에서 세션 복구
+    Linking.getInitialURL().then(handleAuthUrl);
+    const linkSub = Linking.addEventListener('url', (e) => handleAuthUrl(e.url));
+
+    return () => {
+      sub.subscription.unsubscribe();
+      linkSub.remove();
+    };
   }, []);
 
   // 로그인되면 서버 데이터로 동기화
