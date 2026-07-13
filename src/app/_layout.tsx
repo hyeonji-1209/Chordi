@@ -15,6 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import type { Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import { LoginScreen } from '@/components/LoginScreen';
+import { TeamOnboarding } from '@/components/TeamOnboarding';
 import { C } from '@/constants/theme';
 import { handleAuthUrl } from '@/lib/auth';
 import { supabase, supabaseEnabled } from '@/lib/supabase';
@@ -52,13 +53,18 @@ export default function RootLayout() {
     };
   }, []);
 
-  // 로그인되면 서버 데이터로 동기화
+  // 로그인되면 서버 데이터로 동기화, 로그아웃하면 동기화 상태 리셋
   useEffect(() => {
     if (session) {
       useStore.getState().setCurrentUser(session.user.id);
       useStore.getState().initFromServer();
+    } else {
+      useStore.getState().setSynced(false);
     }
   }, [session]);
+
+  const teamCount = useStore((s) => s.teams.length);
+  const synced = useStore((s) => s.synced);
 
   useEffect(() => {
     if (loaded && authReady) SplashScreen.hideAsync();
@@ -72,6 +78,16 @@ export default function RootLayout() {
       <>
         <StatusBar style="dark" />
         <LoginScreen />
+      </>
+    );
+  }
+
+  // 첫 로그인: 소속 팀이 없으면 팀 만들기 / 초대코드 참여 온보딩
+  if (supabaseEnabled && session && synced && teamCount === 0) {
+    return (
+      <>
+        <StatusBar style="dark" />
+        <TeamOnboarding />
       </>
     );
   }

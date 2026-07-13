@@ -78,9 +78,11 @@ type Store = {
   setlists: Setlist[];
   aiDraft: AiDraft;
   currentUserId: string | null; // 로그인 사용자 (서버 모드)
+  synced: boolean; // 서버 동기화 완료 여부 (팀 온보딩 판단용)
 
   setCurrentUser: (userId: string) => void;
-  initFromServer: () => Promise<void>; // 서버 데이터로 교체 (팀 없으면 기본 팀 생성)
+  setSynced: (on: boolean) => void;
+  initFromServer: () => Promise<void>; // 서버 데이터로 교체
   meId: () => string;
 
   currentTeam: () => Team;
@@ -127,8 +129,10 @@ export const useStore = create<Store>()(
       aiDraft: EMPTY_DRAFT,
       transcribing: {},
       currentUserId: null,
+      synced: false,
 
       setCurrentUser: (userId) => set({ currentUserId: userId }),
+      setSynced: (on) => set({ synced: on }),
       meId: () => get().currentUserId ?? ME,
 
       initFromServer: async () => {
@@ -136,17 +140,14 @@ export const useStore = create<Store>()(
         // 로그인 직후 서버 시계 오차(PGRST303 등)로 실패할 수 있어 재시도
         for (let attempt = 1; attempt <= 4; attempt++) {
           try {
-            let data = await fetchAll();
-            if (data.teams.length === 0) {
-              await createTeamRemote('내 찬양팀');
-              data = await fetchAll();
-            }
+            const data = await fetchAll();
             const keepCurrent = data.teams.find((t) => t.id === get().currentTeamId);
             set({
               teams: data.teams,
               songs: data.songs,
               setlists: data.setlists,
               currentTeamId: keepCurrent?.id ?? data.teams[0]?.id ?? '',
+              synced: true,
             });
             console.log(`서버 동기화 완료 (팀 ${data.teams.length} · 곡 ${data.songs.length})`);
             return;
