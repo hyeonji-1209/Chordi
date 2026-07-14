@@ -211,6 +211,32 @@ export async function deleteSetlistRemote(setlistId: string) {
   if (error) throw error;
 }
 
+/** 콘티 곡목 전체 교체 (수정 모드 저장) */
+export async function replaceSetlistItemsRemote(
+  setlistId: string,
+  items: Setlist['items'],
+  subtitle?: string,
+) {
+  const client = sb();
+  if (subtitle) {
+    await client.from('setlists').update({ subtitle }).eq('id', setlistId);
+  }
+  const { error: dErr } = await client.from('setlist_items').delete().eq('setlist_id', setlistId);
+  if (dErr) throw dErr;
+  const { error } = await client.from('setlist_items').insert(
+    items.map((it, i) => ({
+      setlist_id: setlistId,
+      song_id: it.songId,
+      position: i,
+      key: it.key,
+      note: it.note ?? null,
+      sub_note: it.subNote ?? null,
+      linked_to_prev: it.linkedToPrev ?? false,
+    })),
+  );
+  if (error) throw error;
+}
+
 export async function patchItemRemote(
   setlistId: string,
   songId: string,

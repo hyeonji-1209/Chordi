@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '@/constants/theme';
 import { editSetlist } from '@/lib/ai';
+import type { SetlistItem } from '@/data/types';
 import { useStore } from '@/store/useStore';
 
 export default function SetlistScreen() {
@@ -25,12 +26,41 @@ export default function SetlistScreen() {
   const songs = useStore((s) => s.songs);
   const songById = useStore((s) => s.songById);
   const applySetlistEdits = useStore((s) => s.applySetlistEdits);
+  const updateSetlistItems = useStore((s) => s.updateSetlistItems);
 
   const [editOpen, setEditOpen] = useState(false);
   const [command, setCommand] = useState('');
   const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<SetlistItem[] | null>(null); // 수정 모드 (null = 보기)
+  const [addOpen, setAddOpen] = useState(false);
 
   if (!setlist) return null;
+
+  const editMode = draft !== null;
+
+  const startEdit = () => setDraft(setlist.items.map((it) => ({ ...it })));
+  const finishEdit = () => {
+    if (draft && draft.length > 0) updateSetlistItems(setlist.id, draft);
+    else if (draft && draft.length === 0) {
+      Alert.alert('확인', '곡이 하나도 없어요. 콘티를 비울 수는 없어요.');
+      return;
+    }
+    setDraft(null);
+  };
+  const moveItem = (i: number, dir: -1 | 1) =>
+    setDraft((d) => {
+      if (!d) return d;
+      const j = i + dir;
+      if (j < 0 || j >= d.length) return d;
+      const next = [...d];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  const removeItem = (i: number) => setDraft((d) => d?.filter((_, k) => k !== i) ?? d);
+  const addSongToDraft = (songId: string, key: string) => {
+    setDraft((d) => (d ? [...d, { songId, key }] : d));
+    setAddOpen(false);
+  };
 
   const share = () => {
     const lines = setlist.items.map((it, i) => {
@@ -69,37 +99,50 @@ export default function SetlistScreen() {
           <Text style={st.headerTitle}>{setlist.title}</Text>
           <Text style={st.headerSub}>{setlist.subtitle}</Text>
         </View>
-        <Pressable style={st.shareBtn} onPress={share}>
-          <Text style={st.shareLabel}>공유</Text>
+        <Pressable
+          style={[st.shareBtn, editMode && { backgroundColor: C.primary, borderColor: C.primary }]}
+          onPress={editMode ? finishEdit : startEdit}
+        >
+          <Text style={[st.shareLabel, editMode && { color: '#fff', fontFamily: F.sansBold }]}>
+            {editMode ? '완료' : '수정'}
+          </Text>
         </Pressable>
+        {!editMode && (
+          <Pressable style={st.shareBtn} onPress={share}>
+            <Text style={st.shareLabel}>공유</Text>
+          </Pressable>
+        )}
       </View>
 
       {/* AI edit pill */}
+      {!editMode && (
       <Pressable style={st.voicePill} onPress={() => setEditOpen(true)}>
         <Text style={{ color: C.goldDark, fontSize: 14 }}>✦</Text>
         <Text style={st.voiceText}>"2번곡 한 키 내려줘" 처럼 말로 수정</Text>
       </Pressable>
+      )}
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 110 }}>
-        {setlist.items.map((item, i) => {
+        {(editMode ? draft! : setlist.items).map((item, i) => {
           const song = songById(item.songId);
           if (!song) return null;
           return (
-            <View key={item.songId}>
-              {item.linkedToPrev && (
+            <View key={`${item.songId}-${i}`}>
+              {item.linkedToPrev && !editMode && (
                 <View style={st.linkRow}>
                   <Text style={st.linkChip}>⛓ 간주 없이 이어서</Text>
                 </View>
               )}
               <Pressable
+                disabled={editMode}
                 onPress={() => router.push(`/sheet/${setlist.id}/${song.id}`)}
                 style={({ pressed }) => [
                   st.songCard,
-                  i > 0 && !item.linkedToPrev && { marginTop: 8 },
-                  pressed && { borderColor: C.primary },
+                  i > 0 && (!item.linkedToPrev || editMode) && { marginTop: 8 },
+                  pressed && !editMode && { borderColor: C.primary },
                 ]}
               >
-                <Text style={st.dragHandle}>⠿</Text>
+                {!editMode && <Text style={st.dragHandle}>⠿</Text>}
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={st.songTitle}>
                     {i + 1}. {song.title}
@@ -107,14 +150,34 @@ export default function SetlistScreen() {
                   {item.subNote && <Text style={st.subNote}>{item.subNote}</Text>}
                   {item.note && <Text style={st.note}>{item.note}</Text>}
                 </View>
-                <Text style={st.key}>{item.key}</Text>
+                {editMode ? (
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                    <Pressable style={st.editBtn} onPress={() => moveItem(i, -1)}>
+                      <Text style={st.editBtnLabel}>↑</Text>
+                    </Pressable>
+                    <Pressable style={st.editBtn} onPress={() => moveItem(i, 1)}>
+                      <Text style={st.editBtnLabel}>↓</Text>
+                    </Pressable>
+                    <Pressable style={[st.editBtn, { borderColor: '#D08770' }]} onPress={() => removeItem(i)}>
+                      <Text style={[st.editBtnLabel, { color: '#C0563C' }]}>✕</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <Text style={st.key}>{item.key}</Text>
+                )}
               </Pressable>
             </View>
           );
         })}
+        {editMode && (
+          <Pressable style={st.addSongBtn} onPress={() => setAddOpen(true)}>
+            <Text style={st.addSongLabel}>＋ 라이브러리에서 곡 추가</Text>
+          </Pressable>
+        )}
       </ScrollView>
 
       {/* play mode */}
+      {!editMode && (
       <View style={[st.footer, { paddingBottom: insets.bottom + 14 }]}>
         <Pressable
           onPress={() => router.push(`/sheet/${setlist.id}/${setlist.items[0].songId}`)}
@@ -123,6 +186,35 @@ export default function SetlistScreen() {
           <Text style={st.playLabel}>▶ 연주 모드</Text>
         </Pressable>
       </View>
+      )}
+
+      {/* 곡 추가 모달 */}
+      <Modal visible={addOpen} transparent animationType="fade" onRequestClose={() => setAddOpen(false)}>
+        <Pressable style={st.dim} onPress={() => setAddOpen(false)} />
+        <View style={[st.modalCard, { maxHeight: '60%' }]}>
+          <Text style={st.modalTitle}>곡 추가</Text>
+          <ScrollView contentContainerStyle={{ gap: 6 }}>
+            {songs
+              .filter((sg) => sg.teamId === setlist.teamId && !draft?.some((it) => it.songId === sg.id))
+              .map((sg) => (
+                <Pressable
+                  key={sg.id}
+                  style={st.addRow}
+                  onPress={() => addSongToDraft(sg.id, sg.originalKey)}
+                >
+                  <Text style={st.addRowTitle}>{sg.title}</Text>
+                  <Text style={st.addRowKey}>{sg.originalKey}</Text>
+                </Pressable>
+              ))}
+            {songs.filter((sg) => sg.teamId === setlist.teamId && !draft?.some((it) => it.songId === sg.id))
+              .length === 0 && (
+              <Text style={{ fontFamily: F.sans, fontSize: 12.5, color: C.mut, textAlign: 'center', padding: 16 }}>
+                추가할 수 있는 곡이 없어요 — Songs 탭에서 악보를 먼저 올려주세요
+              </Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* AI edit modal */}
       <Modal visible={editOpen} transparent animationType="fade" onRequestClose={() => setEditOpen(false)}>
@@ -250,6 +342,39 @@ const st = StyleSheet.create({
     backgroundColor: C.bg,
   },
   playBtn: { backgroundColor: C.ink, borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
+  editBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editBtnLabel: { fontSize: 14, color: C.ink },
+  addSongBtn: {
+    marginTop: 10,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: C.primary,
+    borderRadius: 13,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  addSongLabel: { fontFamily: F.sansBold, fontSize: 13, color: C.primary },
+  addRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+  },
+  addRowTitle: { flex: 1, fontFamily: F.sansMedium, fontSize: 13.5, color: C.ink },
+  addRowKey: { fontFamily: F.mono, fontWeight: '600', fontSize: 11.5, color: C.mut },
   playLabel: { fontFamily: F.sansBold, fontSize: 15, color: '#fff' },
   dim: { flex: 1, backgroundColor: 'rgba(38,36,31,.45)' },
   modalCard: {

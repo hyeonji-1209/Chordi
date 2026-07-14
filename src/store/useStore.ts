@@ -11,6 +11,7 @@ import {
   joinTeamRemote,
   patchItemRemote,
   patchSongRemote,
+  replaceSetlistItemsRemote,
   upsertSetlistRemote,
   upsertSongRemote,
 } from '@/lib/db';
@@ -104,6 +105,7 @@ type Store = {
   setSongImages: (songId: string, urls: string[]) => void; // 원본 악보 사진 부착
   setTranscribing: (songId: string, on: boolean) => void;
   setItemKey: (setlistId: string, songId: string, key: string) => void;
+  updateSetlistItems: (setlistId: string, items: Setlist['items']) => void; // 수정 모드 저장
   updateSongForm: (songId: string, form: FormChip[]) => void;
   applySetlistEdits: (setlistId: string, edit: AiSetlistEdit) => void;
 
@@ -324,6 +326,18 @@ export const useStore = create<Store>()(
           ),
         }));
         push(() => patchItemRemote(setlistId, songId, { key }));
+      },
+
+      updateSetlistItems: (setlistId, items) => {
+        let subtitle: string | undefined;
+        set((st) => ({
+          setlists: st.setlists.map((sl) => {
+            if (sl.id !== setlistId) return sl;
+            subtitle = sl.subtitle.replace(/\d+곡/, `${items.length}곡`);
+            return { ...sl, items, subtitle };
+          }),
+        }));
+        push(() => replaceSetlistItemsRemote(setlistId, items, subtitle));
       },
 
       updateSongForm: (songId, form) => {
