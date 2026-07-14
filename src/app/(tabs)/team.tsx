@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -17,6 +18,7 @@ import { Avatar, Card, ScreenTitle } from '@/components/ui';
 import { C, F } from '@/constants/theme';
 import { displayName, signOut } from '@/lib/auth';
 import { guessServiceDay } from '@/lib/date';
+import { inviteLink, inviteQrUrl } from '@/lib/invite';
 import { supabase, supabaseEnabled } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
 
@@ -39,6 +41,7 @@ export default function TeamScreen() {
   const [modalDayTouched, setModalDayTouched] = useState(false);
   const [modalTime, setModalTime] = useState('');
   const [account, setAccount] = useState<{ name: string; email: string | null } | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -58,7 +61,7 @@ export default function TeamScreen() {
 
   const shareInvite = () => {
     Share.share({
-      message: `Chordi 팀 "${team.name}"에 초대해요! 초대코드: ${team.inviteCode}`,
+      message: `Chordi 팀 "${team.name}"에 초대해요!\n초대코드: ${team.inviteCode}\n${inviteLink(team.inviteCode)}`,
     });
   };
 
@@ -116,8 +119,8 @@ export default function TeamScreen() {
           <Pressable style={st.teamBtn} onPress={shareInvite}>
             <Text style={st.teamBtnLabel}>멤버 초대</Text>
           </Pressable>
-          <Pressable style={st.teamBtn} onPress={shareInvite}>
-            <Text style={st.teamBtnLabel}>초대코드 {team.inviteCode}</Text>
+          <Pressable style={st.teamBtn} onPress={() => setInviteOpen(true)}>
+            <Text style={st.teamBtnLabel}>QR·코드 {team.inviteCode}</Text>
           </Pressable>
         </View>
       </View>
@@ -213,6 +216,32 @@ export default function TeamScreen() {
       >
         <Text style={{ fontFamily: F.sans, fontSize: 12, color: C.faint }}>모든 데이터 초기화</Text>
       </Pressable>
+
+      {/* invite QR modal */}
+      <Modal visible={inviteOpen} transparent animationType="fade" onRequestClose={() => setInviteOpen(false)}>
+        <Pressable style={st.dim} onPress={() => setInviteOpen(false)} />
+        <View style={[st.modalCard, { alignItems: 'center' }]}>
+          <Text style={st.modalTitle}>{team.name} 초대</Text>
+          <Image
+            source={{ uri: inviteQrUrl(team.inviteCode) }}
+            style={{ width: 220, height: 220, borderRadius: 12 }}
+          />
+          <Text style={{ fontFamily: F.sansBold, fontSize: 22, letterSpacing: 6, color: C.primary }}>
+            {team.inviteCode}
+          </Text>
+          <Text style={{ fontFamily: F.sans, fontSize: 12, color: C.mut, textAlign: 'center' }}>
+            팀원이 폰 카메라로 QR을 스캔하면 바로 입장돼요{'\n'}(또는 앱에서 초대코드 입력)
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8, alignSelf: 'stretch' }}>
+            <Pressable style={st.modalGhost} onPress={() => setInviteOpen(false)}>
+              <Text style={st.modalGhostLabel}>닫기</Text>
+            </Pressable>
+            <Pressable style={st.modalPrimary} onPress={shareInvite}>
+              <Text style={st.modalPrimaryLabel}>공유하기</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       {/* create / join modal */}
       <Modal visible={modal !== null} transparent animationType="fade" onRequestClose={() => setModal(null)}>

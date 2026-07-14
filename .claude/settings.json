@@ -13,7 +13,8 @@
       "Bash(git commit -q -m '프록시: 업스트림 에러 본문 로깅 *)",
       "Bash(git commit -q -m '이미지 mimeType 정규화 — HEIC 등 비허용 형식 400 에러 수정 *)",
       "Bash(git commit -q -m '주보 업로드 화면 문구 — '\\\\''안녕하세요, 관리자님!'\\\\'' *)",
-      "Bash(git commit -q -m '온보딩 단순화 — 교회 등록\\(관리자\\) 또는 초대코드 참여\\(팀원\\) *)"
+      "Bash(git commit -q -m '온보딩 단순화 — 교회 등록\\(관리자\\) 또는 초대코드 참여\\(팀원\\) *)",
+      "Bash(git commit -q -m '초대 QR — 폰 카메라 스캔으로 바로 팀 입장 *)"
     ]
   },
   "enabledPlugins": {

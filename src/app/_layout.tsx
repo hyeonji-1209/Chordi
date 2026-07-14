@@ -20,6 +20,7 @@ import { LoginScreen } from '@/components/LoginScreen';
 import { TeamOnboarding } from '@/components/TeamOnboarding';
 import { C } from '@/constants/theme';
 import { handleAuthUrl } from '@/lib/auth';
+import { consumePendingJoin, parseJoinUrl, setPendingJoin } from '@/lib/invite';
 import { registerPushToken } from '@/lib/push';
 import { supabase, supabaseEnabled } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
@@ -59,9 +60,17 @@ export default function RootLayout() {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
 
-    // Expo Go: 인증 리다이렉트가 앱 리로드로 이어지므로 딥링크에서 세션 복구
-    Linking.getInitialURL().then(handleAuthUrl);
-    const linkSub = Linking.addEventListener('url', (e) => handleAuthUrl(e.url));
+    // 딥링크: 인증 콜백 + 초대 QR(join) 처리
+    const handleLink = (url: string | null | undefined) => {
+      handleAuthUrl(url);
+      const code = parseJoinUrl(url);
+      if (!code) return;
+      const st = useStore.getState();
+      if (st.synced && st.currentUserId) st.joinTeam(code);
+      else setPendingJoin(code); // 로그인/동기화 후 입장
+    };
+    Linking.getInitialURL().then(handleLink);
+    const linkSub = Linking.addEventListener('url', (e) => handleLink(e.url));
 
     return () => {
       sub.subscription.unsubscribe();
@@ -73,7 +82,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (session) {
       useStore.getState().setCurrentUser(session.user.id);
-      useStore.getState().initFromServer();
+      useStore
+        .getState()
+        .initFromServer()
+        .then(() => {
+          const code = consumePendingJoin(); // 초대 QR로 진입했다면 입장
+          if (code) useStore.getState().joinTeam(code);
+        });
       registerPushToken(); // 콘티 알림용 (개발 빌드/정식 앱에서 동작)
     } else {
       useStore.getState().setSynced(false);
