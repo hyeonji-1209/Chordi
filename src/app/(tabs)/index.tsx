@@ -19,10 +19,6 @@ export default function HomeScreen() {
     () => setlists.find((sl) => sl.teamId === team.id),
     [setlists, team.id],
   );
-  const recent = useMemo(
-    () => songs.filter((s) => s.teamId === team.id).slice(0, 2),
-    [songs, team.id],
-  );
   const meId = useStore((s) => s.meId());
   const me = team.members.find((m) => m.id === meId) ?? team.members[0];
 
@@ -101,19 +97,6 @@ export default function HomeScreen() {
           </Card>
         )}
 
-        {/* recent */}
-        {recent.length > 0 && (
-          <View style={{ gap: 8 }}>
-            <Text style={st.sectionLabel}>최근 올린 악보</Text>
-            {recent.map((song) => (
-              <View key={song.id} style={st.recentRow}>
-                <Text style={st.recentName}>{song.title}</Text>
-                <Text style={st.recentTeam}>{team.name}</Text>
-                <Text style={st.recentKey}>{song.originalKey}</Text>
-              </View>
-            ))}
-          </View>
-        )}
       </View>
     </ScrollView>
   );

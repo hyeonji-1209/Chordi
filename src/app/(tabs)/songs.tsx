@@ -14,12 +14,11 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { KeyBadge, ScreenTitle, SheetThumb } from '@/components/ui';
+import { ScreenTitle, SheetThumb } from '@/components/ui';
 import { C, F } from '@/constants/theme';
 import { normalizeImageType } from '@/lib/media';
 import { analyzeSong } from '@/lib/ai';
 import { uploadSheetImages } from '@/lib/sheets';
-import { formToText } from '@/lib/form';
 import { useStore } from '@/store/useStore';
 import type { AiSongAnalysis, Song } from '@/data/types';
 
@@ -50,10 +49,6 @@ export default function SongsScreen() {
   const [editSong, setEditSong] = useState<Song | null>(null);
 
   const teamSongs = useMemo(() => songs.filter((s) => s.teamId === team.id), [songs, team.id]);
-  const thisWeek = useMemo(
-    () => setlists.find((sl) => sl.teamId === team.id),
-    [setlists, team.id],
-  );
 
   const filtered = useMemo(
     () => teamSongs.filter((s) => !query || s.title.includes(query)),
@@ -155,53 +150,8 @@ export default function SongsScreen() {
         <View style={{ paddingHorizontal: 20, gap: 12 }}>
           <ScreenTitle>Songs</ScreenTitle>
 
-          {/* ── 핵심: 이번 주 찬양 + 송폼 ── */}
-          {thisWeek ? (
-            <View style={st.weekCard}>
-              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-                <Text style={st.weekTitle}>이번 주 찬양</Text>
-                <Text style={st.weekSub}>{thisWeek.title}</Text>
-                <Pressable style={{ marginLeft: 'auto' }} onPress={() => router.push(`/setlist/${thisWeek.id}`)}>
-                  <Text style={st.link}>콘티 ›</Text>
-                </Pressable>
-              </View>
-              {thisWeek.items.map((item, i) => {
-                const song = songById(item.songId);
-                if (!song) return null;
-                const form = formToText(song.form);
-                return (
-                  <Pressable
-                    key={item.songId}
-                    onPress={() => router.push(`/sheet/${thisWeek.id}/${song.id}`)}
-                    onLongPress={() => onLongPressSong(song)}
-                    style={({ pressed }) => [st.weekRow, pressed && { borderColor: C.primary }]}
-                  >
-                    <Text style={st.weekIdx}>{i + 1}</Text>
-                    <View style={{ flex: 1, gap: 3 }}>
-                      <Text style={st.weekSong}>{song.title}</Text>
-                      <Text style={st.weekForm} numberOfLines={1}>
-                        {form ? `송폼  ${form}` : '송폼 없음 — 연주 모드 ✎에서 추가'}
-                      </Text>
-                    </View>
-                    <KeyBadge k={item.key} />
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : (
-            <View style={st.weekCard}>
-              <Text style={st.weekTitle}>이번 주 찬양</Text>
-              <Text style={st.weekEmpty}>
-                아직 콘티가 없어요. Home에서 AI로 콘티를 만들면 여기에 이번 주 찬양과 송폼이 떠요.
-              </Text>
-            </View>
-          )}
 
-          {/* ── 라이브러리 ── */}
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 6 }}>
-            <Text style={st.libLabel}>라이브러리</Text>
-            <Text style={st.libSub}>· {teamSongs.length}곡 · 길게 눌러 수정/삭제</Text>
-          </View>
+          <Text style={st.libSub}>{teamSongs.length}곡 · 길게 눌러 수정/삭제</Text>
           <View style={st.search}>
             <Ionicons name="search" size={15} color={C.mut} />
             <TextInput
