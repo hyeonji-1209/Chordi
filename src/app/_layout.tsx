@@ -42,9 +42,18 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.auth.getSession().then(({ data }) => {
-      needsBioLock.current = !!data.session;
-      setSession(data.session);
+    supabase.auth.getSession().then(async ({ data }) => {
+      let session = data.session;
+      // 서버에서 계정이 지워진 유령 세션이면 자동 로그아웃 → 로그인 화면부터
+      if (session) {
+        const { error } = await supabase!.auth.getUser();
+        if (error) {
+          await supabase!.auth.signOut().catch(() => {});
+          session = null;
+        }
+      }
+      needsBioLock.current = !!session;
+      setSession(session);
       setAuthReady(true);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
