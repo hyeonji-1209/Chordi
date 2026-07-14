@@ -64,6 +64,20 @@ export type Team = {
   inviteCode: string;
   serviceDay?: number; // 예배 요일 0=일 … 6=토
   serviceTime?: string; // 예배 시간 "19:30" (선택)
+  churchId?: string; // 소속 교회
+  churchName?: string; // 표시용 (조인 결과)
+};
+
+// ── 주보 파싱 결과 ──
+export type BulletinService = {
+  name: string; // "주일예배 1부"
+  day: number | null; // 0=일 … 6=토
+  time: string | null; // "19:30"
+};
+
+export type BulletinResult = {
+  churchName: string;
+  services: BulletinService[];
 };
 
 // ── AI 콘티 생성 결과 ──

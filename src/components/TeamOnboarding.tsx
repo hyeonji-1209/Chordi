@@ -10,13 +10,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { BulletinSetup } from '@/components/BulletinSetup';
 import { ServicePicker } from '@/components/ServicePicker';
 import { C, F } from '@/constants/theme';
 import { guessServiceDay } from '@/lib/date';
 import { createTeamRemote, joinTeamRemote } from '@/lib/db';
 import { useStore } from '@/store/useStore';
 
-type Mode = 'choice' | 'create' | 'join';
+type Mode = 'choice' | 'create' | 'join' | 'bulletin';
 
 /** 첫 로그인 온보딩: 팀 만들기 or 초대코드로 참여 */
 export function TeamOnboarding() {
@@ -64,11 +65,22 @@ export function TeamOnboarding() {
         <Text style={st.subtitle}>팀 이름이 곧 예배예요 — 주일 1부, 목요예배, 청년부…</Text>
       </View>
 
-      {mode === 'choice' ? (
+      {mode === 'bulletin' ? (
+        <View style={{ width: '100%', gap: 10 }}>
+          <BulletinSetup onDone={() => {}} />
+          <Pressable onPress={() => setMode('choice')} style={{ alignItems: 'center', padding: 8 }}>
+            <Text style={{ fontFamily: F.sans, fontSize: 13, color: C.mut }}>‹ 뒤로</Text>
+          </Pressable>
+        </View>
+      ) : mode === 'choice' ? (
         <View style={{ gap: 10, width: '100%' }}>
+          <Pressable style={[st.cardBtn, { borderColor: C.primary }]} onPress={() => setMode('bulletin')}>
+            <Text style={st.cardTitle}>📷 주보로 교회 등록</Text>
+            <Text style={st.cardDesc}>주보 사진을 찍으면 예배별 찬양팀이 한 번에 만들어져요</Text>
+          </Pressable>
           <Pressable style={st.cardBtn} onPress={() => setMode('create')}>
             <Text style={st.cardTitle}>새 팀 만들기</Text>
-            <Text style={st.cardDesc}>내가 인도자예요. 팀을 만들고 팀원을 초대할게요</Text>
+            <Text style={st.cardDesc}>내가 인도자예요. 팀 하나만 만들고 팀원을 초대할게요</Text>
           </Pressable>
           <Pressable style={st.cardBtn} onPress={() => setMode('join')}>
             <Text style={st.cardTitle}>초대코드로 참여</Text>

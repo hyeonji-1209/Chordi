@@ -16,7 +16,9 @@ export async function fetchAll(): Promise<{ teams: Team[]; songs: Song[]; setlis
 
   const { data: memberships, error: mErr } = await client
     .from('team_members')
-    .select('team_id, roles, is_leader, teams(id, name, color, invite_code, service_day, service_time)');
+    .select(
+      'team_id, roles, is_leader, teams(id, name, color, invite_code, service_day, service_time, church_id, churches:church_id(name))',
+    );
   if (mErr) throw mErr;
 
   const teamIds = (memberships ?? []).map((m) => m.team_id);
@@ -43,6 +45,8 @@ export async function fetchAll(): Promise<{ teams: Team[]; songs: Song[]; setlis
       invite_code: string;
       service_day: number | null;
       service_time: string | null;
+      church_id: string | null;
+      churches: { name: string } | null;
     };
     return {
       id: t.id,
@@ -52,6 +56,8 @@ export async function fetchAll(): Promise<{ teams: Team[]; songs: Song[]; setlis
       inviteCode: t.invite_code,
       serviceDay: t.service_day ?? undefined,
       serviceTime: t.service_time ?? undefined,
+      churchId: t.church_id ?? undefined,
+      churchName: t.churches?.name ?? undefined,
       members: (allMembers ?? [])
         .filter((mm) => mm.team_id === t.id)
         .map((mm) => ({
@@ -110,6 +116,19 @@ export async function createTeamRemote(
     team_name: name,
     p_service_day: serviceDay ?? null,
     p_service_time: serviceTime?.trim() || null,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+/** 주보 파싱 결과로 교회 + 예배별 팀 일괄 생성. church id 반환 */
+export async function createChurchWithTeamsRemote(
+  churchName: string,
+  services: { name: string; day: number | null; time: string | null }[],
+): Promise<string> {
+  const { data, error } = await sb().rpc('create_church_with_teams', {
+    church_name: churchName,
+    services,
   });
   if (error) throw error;
   return data as string;

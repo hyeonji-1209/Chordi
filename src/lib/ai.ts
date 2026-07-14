@@ -7,6 +7,7 @@ import type {
   AiSetlistEdit,
   AiSetlistResult,
   AiSongAnalysis,
+  BulletinResult,
   Setlist,
   Song,
 } from '@/data/types';
@@ -350,6 +351,44 @@ export async function generateSetlist(
 }
 
 /** 곡 정보·코드차트 분석 (빠른 경로 — 오선보 필사는 별도) */
+const BulletinSchema = z.object({
+  rejection: RejectionField,
+  churchName: z.string().describe('주보에 적힌 교회 이름. 예: "분당우리교회"'),
+  services: z.array(
+    z.object({
+      name: z.string().describe('예배 이름. 예: "주일예배 1부", "수요예배", "금요기도회"'),
+      day: z.number().nullable().describe('요일 0=일요일 … 6=토요일. 매일이거나 불명확하면 null'),
+      time: z.string().nullable().describe('시작 시간 "HH:MM" (24시간). 없으면 null'),
+    }),
+  ),
+});
+
+const BULLETIN_SYSTEM = `너는 교회 주보(주간 소식지)를 읽는 도우미다.
+주보 사진에서 교회 이름과 "정기 예배 목록"을 추출한다.
+
+규칙:
+- 주일예배가 1부/2부/3부로 나뉘면 각각 별도 항목으로 (시간도 각각).
+- 수요예배, 금요기도회/철야, 새벽기도회, 가정예배 등 정기 예배를 모두 포함한다.
+- 특별 행사(성탄감사예배, 송구영신예배 등 일회성)는 제외한다.
+- 시간은 24시간 "HH:MM"으로 (저녁 7시 30분 → "19:30", 새벽 5시 → "05:00").
+- 요일: 주일→0, 수요→3, 금요→5. 새벽기도처럼 여러 요일이면 day는 null.
+${GUARD_RULES}`;
+
+/** 주보 사진 → 교회 이름 + 정기 예배 목록 */
+export async function parseBulletin(images: ImageInput[]): Promise<BulletinResult> {
+  const res = await callStructured({
+    system: BULLETIN_SYSTEM,
+    maxTokens: 8000,
+    schema: BulletinSchema,
+    content: [
+      ...imageBlocks(images),
+      { type: 'text', text: '이 주보에서 교회 이름과 정기 예배 목록을 추출해줘.' },
+    ],
+  });
+  if (res.rejection) throw new Error(res.rejection);
+  return { churchName: res.churchName, services: res.services };
+}
+
 export async function analyzeSong(images: ImageInput[]): Promise<AiSongAnalysis> {
   const meta = await callStructured({
     system: SONG_SYSTEM,

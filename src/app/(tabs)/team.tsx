@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ServicePicker } from '@/components/ServicePicker';
 import { Avatar, Card, ScreenTitle } from '@/components/ui';
@@ -21,6 +22,7 @@ import { useStore } from '@/store/useStore';
 
 export default function TeamScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const teams = useStore((s) => s.teams);
   const currentTeamId = useStore((s) => s.currentTeamId);
   const switchTeam = useStore((s) => s.switchTeam);
@@ -150,7 +152,10 @@ export default function TeamScreen() {
               style={({ pressed }) => [st.teamRow, pressed && { borderColor: C.primary }]}
             >
               <View style={[st.dot, { width: 8, height: 8, backgroundColor: t.color }]} />
-              <Text style={[st.teamRowName, current && { fontFamily: F.sansBold }]}>{t.name}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[st.teamRowName, current && { fontFamily: F.sansBold }]}>{t.name}</Text>
+                {t.churchName && <Text style={st.teamRowChurch}>{t.churchName}</Text>}
+              </View>
               <Text style={[st.teamRowAction, current && { color: C.primary, fontFamily: F.sansBold }]}>
                 {current ? '현재' : '전환 ›'}
               </Text>
@@ -165,6 +170,12 @@ export default function TeamScreen() {
             <Text style={st.addTeamLabel}>초대코드로 입장</Text>
           </Pressable>
         </View>
+        <Pressable
+          style={[st.addTeam, { borderColor: C.primary }]}
+          onPress={() => router.push('/church-setup')}
+        >
+          <Text style={[st.addTeamLabel, { color: C.primary }]}>📷 주보로 교회 등록 — 예배별 팀 한 번에</Text>
+        </Pressable>
       </View>
 
       {/* account */}
@@ -296,6 +307,7 @@ const st = StyleSheet.create({
     paddingVertical: 12,
   },
   teamRowName: { fontFamily: F.sansMedium, fontSize: 13.5, color: C.ink },
+  teamRowChurch: { fontFamily: F.sans, fontSize: 10.5, color: C.faint },
   teamRowAction: { marginLeft: 'auto', fontFamily: F.sans, fontSize: 12, color: C.mut },
   addTeam: {
     borderWidth: 1.5,
