@@ -6,7 +6,8 @@
       "Bash(git commit -q -m 'google-services.json을 EAS 시크릿으로 주입 \\(app.config.js\\) *)",
       "Bash(git commit -q -m ' *)",
       "Bash(git commit -q -m '푸시 토큰 디버그 로그 *)",
-      "Bash(git commit -q -m '테스트 초기화용 reset-data.sql *)"
+      "Bash(git commit -q -m '테스트 초기화용 reset-data.sql *)",
+      "Bash(git commit -q -m 'reset-data.sql: storage 직접 삭제 불가 반영 *)"
     ]
   },
   "enabledPlugins": {
