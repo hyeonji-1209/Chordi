@@ -11,6 +11,7 @@ import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import type { Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
@@ -104,6 +105,19 @@ export default function RootLayout() {
       <>
         <StatusBar style="dark" />
         <BiometricLock onUnlock={() => setUnlocked(true)} />
+      </>
+    );
+  }
+
+  // 서버 동기화가 끝나기 전에는 본 화면을 그리지 않음 (빈 팀 상태 크래시 방지)
+  if (supabaseEnabled && session && !synced) {
+    return (
+      <>
+        <StatusBar style="dark" />
+        <View style={{ flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <Text style={{ fontSize: 24, color: '#B98A2F' }}>✦</Text>
+          <ActivityIndicator color={C.primary} />
+        </View>
       </>
     );
   }

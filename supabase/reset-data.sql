@@ -10,4 +10,4 @@ delete from public.teams;        -- 팀 → 멤버/곡/콘티 연쇄 삭제
 -- (테스트용이면 안 지워도 무방 — 접근 경로가 곡과 함께 사라져서 고아 파일일 뿐)
 
 -- ── 계정까지 전부 지우려면 아래 주석을 해제 (프로필도 연쇄 삭제, 재로그인 필요) ──
--- delete from auth.users;
+delete from auth.users;

@@ -157,11 +157,13 @@ export const useStore = create<Store>()(
             if (attempt < 4) await new Promise((r) => setTimeout(r, attempt * 2000));
           }
         }
+        set({ synced: true }); // 전부 실패해도 로딩에 갇히지 않게 — 로컬 캐시로 진행
       },
 
       currentTeam: () => {
         const { teams, currentTeamId } = get();
-        return teams.find((t) => t.id === currentTeamId) ?? teams[0];
+        // 팀이 없어도 화면이 죽지 않게 안전한 기본값 (게이트가 온보딩으로 보냄)
+        return teams.find((t) => t.id === currentTeamId) ?? teams[0] ?? SEED_TEAM;
       },
       songById: (id) => get().songs.find((s) => s.id === id),
       setlistById: (id) => get().setlists.find((s) => s.id === id),
