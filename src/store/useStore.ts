@@ -61,9 +61,11 @@ const SEED_TEAM: Team = {
 
 const ME = 'me';
 
-/** 서버 모드면 UUID, 로컬 모드면 접두사 id */
+/** 서버 모드면 UUID, 로컬 모드면 접두사 id (같은 밀리초 충돌 방지용 난수 포함) */
 function genId(prefix: string): string {
-  return supabaseEnabled ? Crypto.randomUUID() : `${prefix}-${Date.now()}`;
+  return supabaseEnabled
+    ? Crypto.randomUUID()
+    : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 /** 서버 반영 (실패는 로그만 — 로컬 상태가 우선) */
