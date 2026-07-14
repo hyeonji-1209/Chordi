@@ -90,7 +90,7 @@ type Store = {
   setlistById: (id: string) => Setlist | undefined;
 
   switchTeam: (teamId: string) => void;
-  addTeam: (name: string) => void;
+  addTeam: (name: string, serviceDay?: number, serviceTime?: string) => void;
   joinTeam: (code: string) => void;
 
   transcribing: Record<string, boolean>; // songId → 오선보 생성 중 (비영속)
@@ -170,11 +170,11 @@ export const useStore = create<Store>()(
 
       switchTeam: (teamId) => set({ currentTeamId: teamId }),
 
-      addTeam: (name) => {
+      addTeam: (name, serviceDay, serviceTime) => {
         if (supabaseEnabled) {
           (async () => {
             try {
-              const id = await createTeamRemote(name);
+              const id = await createTeamRemote(name, serviceDay, serviceTime);
               await get().initFromServer();
               set({ currentTeamId: id });
             } catch (e) {
@@ -190,6 +190,8 @@ export const useStore = create<Store>()(
           myRole: '인도자',
           inviteCode: newInviteCode(),
           members: [{ id: ME, name: '나', roles: '인도자', leader: true }],
+          serviceDay,
+          serviceTime,
         };
         set((st) => ({ teams: [...st.teams, team], currentTeamId: team.id }));
       },

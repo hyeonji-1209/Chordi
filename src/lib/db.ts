@@ -16,7 +16,7 @@ export async function fetchAll(): Promise<{ teams: Team[]; songs: Song[]; setlis
 
   const { data: memberships, error: mErr } = await client
     .from('team_members')
-    .select('team_id, roles, is_leader, teams(id, name, color, invite_code)');
+    .select('team_id, roles, is_leader, teams(id, name, color, invite_code, service_day, service_time)');
   if (mErr) throw mErr;
 
   const teamIds = (memberships ?? []).map((m) => m.team_id);
@@ -36,13 +36,22 @@ export async function fetchAll(): Promise<{ teams: Team[]; songs: Song[]; setlis
   ]);
 
   const teams: Team[] = (memberships ?? []).map((m, i) => {
-    const t = m.teams as unknown as { id: string; name: string; color: string; invite_code: string };
+    const t = m.teams as unknown as {
+      id: string;
+      name: string;
+      color: string;
+      invite_code: string;
+      service_day: number | null;
+      service_time: string | null;
+    };
     return {
       id: t.id,
       name: t.name,
       color: t.color ?? TEAM_COLORS[i % TEAM_COLORS.length],
       myRole: m.roles,
       inviteCode: t.invite_code,
+      serviceDay: t.service_day ?? undefined,
+      serviceTime: t.service_time ?? undefined,
       members: (allMembers ?? [])
         .filter((mm) => mm.team_id === t.id)
         .map((mm) => ({
@@ -92,8 +101,16 @@ export async function fetchAll(): Promise<{ teams: Team[]; songs: Song[]; setlis
 }
 
 // ── 팀 ──
-export async function createTeamRemote(name: string): Promise<string> {
-  const { data, error } = await sb().rpc('create_team', { team_name: name });
+export async function createTeamRemote(
+  name: string,
+  serviceDay?: number,
+  serviceTime?: string,
+): Promise<string> {
+  const { data, error } = await sb().rpc('create_team', {
+    team_name: name,
+    p_service_day: serviceDay ?? null,
+    p_service_time: serviceTime?.trim() || null,
+  });
   if (error) throw error;
   return data as string;
 }

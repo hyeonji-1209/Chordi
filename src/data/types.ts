@@ -62,6 +62,8 @@ export type Team = {
   myRole: string; // "인도자"
   members: Member[];
   inviteCode: string;
+  serviceDay?: number; // 예배 요일 0=일 … 6=토
+  serviceTime?: string; // 예배 시간 "19:30" (선택)
 };
 
 // ── AI 콘티 생성 결과 ──

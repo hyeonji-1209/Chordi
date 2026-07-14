@@ -11,9 +11,11 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ServicePicker } from '@/components/ServicePicker';
 import { Avatar, Card, ScreenTitle } from '@/components/ui';
 import { C, F } from '@/constants/theme';
 import { displayName, signOut } from '@/lib/auth';
+import { guessServiceDay } from '@/lib/date';
 import { supabase, supabaseEnabled } from '@/lib/supabase';
 import { useStore } from '@/store/useStore';
 
@@ -31,6 +33,9 @@ export default function TeamScreen() {
 
   const [modal, setModal] = useState<'create' | 'join' | null>(null);
   const [modalText, setModalText] = useState('');
+  const [modalDay, setModalDay] = useState<number | undefined>(undefined);
+  const [modalDayTouched, setModalDayTouched] = useState(false);
+  const [modalTime, setModalTime] = useState('');
   const [account, setAccount] = useState<{ name: string; email: string | null } | null>(null);
 
   useEffect(() => {
@@ -58,10 +63,21 @@ export default function TeamScreen() {
   const submitModal = () => {
     const text = modalText.trim();
     if (!text) return;
-    if (modal === 'create') addTeam(text);
+    if (modal === 'create') addTeam(text, modalDay, modalTime);
     if (modal === 'join') joinTeam(text);
     setModal(null);
     setModalText('');
+    setModalDay(undefined);
+    setModalDayTouched(false);
+    setModalTime('');
+  };
+
+  const onModalTextChange = (t: string) => {
+    setModalText(t);
+    if (modal === 'create' && !modalDayTouched) {
+      const guessed = guessServiceDay(t);
+      if (guessed !== undefined) setModalDay(guessed);
+    }
   };
 
   return (
@@ -197,11 +213,22 @@ export default function TeamScreen() {
             placeholder={modal === 'create' ? '팀 이름 (예: 본예배 찬양팀)' : '초대코드 4자리'}
             placeholderTextColor={C.faint}
             value={modalText}
-            onChangeText={setModalText}
+            onChangeText={onModalTextChange}
             autoFocus
             autoCapitalize={modal === 'join' ? 'characters' : 'none'}
             onSubmitEditing={submitModal}
           />
+          {modal === 'create' && (
+            <ServicePicker
+              day={modalDay}
+              time={modalTime}
+              onChangeDay={(d) => {
+                setModalDay(d);
+                setModalDayTouched(true);
+              }}
+              onChangeTime={setModalTime}
+            />
+          )}
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Pressable style={st.modalGhost} onPress={() => setModal(null)}>
               <Text style={st.modalGhostLabel}>취소</Text>

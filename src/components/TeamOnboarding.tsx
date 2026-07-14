@@ -10,7 +10,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { ServicePicker } from '@/components/ServicePicker';
 import { C, F } from '@/constants/theme';
+import { guessServiceDay } from '@/lib/date';
 import { createTeamRemote, joinTeamRemote } from '@/lib/db';
 import { useStore } from '@/store/useStore';
 
@@ -21,13 +23,24 @@ export function TeamOnboarding() {
   const [mode, setMode] = useState<Mode>('choice');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [day, setDay] = useState<number | undefined>(undefined);
+  const [dayTouched, setDayTouched] = useState(false); // 직접 고른 뒤엔 자동 추측 안 함
+  const [time, setTime] = useState('');
+
+  const onNameChange = (t: string) => {
+    setText(t);
+    if (mode === 'create' && !dayTouched) {
+      const guessed = guessServiceDay(t);
+      if (guessed !== undefined) setDay(guessed);
+    }
+  };
 
   const submit = async () => {
     const value = text.trim();
     if (!value) return;
     setBusy(true);
     try {
-      if (mode === 'create') await createTeamRemote(value);
+      if (mode === 'create') await createTeamRemote(value, day, time);
       else await joinTeamRemote(value);
       await useStore.getState().initFromServer(); // 팀이 생기면 게이트가 자동으로 열림
     } catch (e) {
@@ -69,12 +82,23 @@ export function TeamOnboarding() {
             placeholder={mode === 'create' ? '팀 이름 (예: 목요예배 찬양팀)' : '초대코드 4자리'}
             placeholderTextColor={C.faint}
             value={text}
-            onChangeText={setText}
+            onChangeText={onNameChange}
             autoFocus
             autoCapitalize={mode === 'join' ? 'characters' : 'none'}
             editable={!busy}
             onSubmitEditing={submit}
           />
+          {mode === 'create' && (
+            <ServicePicker
+              day={day}
+              time={time}
+              onChangeDay={(d) => {
+                setDay(d);
+                setDayTouched(true);
+              }}
+              onChangeTime={setTime}
+            />
+          )}
           <Pressable
             style={({ pressed }) => [st.primary, pressed && { backgroundColor: C.primaryDark }]}
             onPress={submit}

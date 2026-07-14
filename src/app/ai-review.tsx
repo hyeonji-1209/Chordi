@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyBadge, GoldTag, SheetThumb } from '@/components/ui';
 import { C, F } from '@/constants/theme';
 import { generateSetlist } from '@/lib/ai';
+import { nextServiceLabel } from '@/lib/date';
 import { notifyTeamMembers } from '@/lib/push';
 import { uploadSheetImages } from '@/lib/sheets';
 import { useStore } from '@/store/useStore';
@@ -41,8 +42,9 @@ export default function AiReviewScreen() {
       const imgs = images.map(({ base64, mediaType }) => ({ base64, mediaType }));
       // 오선보 자동 생성(필사)은 정확도 이슈로 보류 — 원본 악보 보기로 대체
       // pendingTranscriptions = imgs.map((img) => transcribeSheet([img]));
-      const teamName = useStore.getState().aiTargetTeam().name;
-      const res = await generateSetlist(imgs, prompt, today, teamName);
+      const targetTeam = useStore.getState().aiTargetTeam();
+      const serviceDate = nextServiceLabel(targetTeam.serviceDay);
+      const res = await generateSetlist(imgs, prompt, today, targetTeam.name, serviceDate);
       setAiResult(res);
     } catch (e) {
       setAiResult(null, e instanceof Error ? e.message : '알 수 없는 오류가 발생했어요.');

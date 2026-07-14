@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar, Card, GoldTag, KeyBadge } from '@/components/ui';
 import { C, F } from '@/constants/theme';
-import { nextSundayLabel } from '@/lib/date';
+import { nextServiceLabel } from '@/lib/date';
 import { useStore } from '@/store/useStore';
 
 export default function HomeScreen() {
@@ -42,7 +42,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={{ paddingHorizontal: 20, gap: 14, paddingTop: 14 }}>
-        <Text style={st.greeting}>{nextSundayLabel()},{'\n'}은혜로운 예배 되세요</Text>
+        <Text style={st.greeting}>{nextServiceLabel(team.serviceDay)}{team.serviceTime ? ` ${team.serviceTime}` : ''},{'\n'}은혜로운 예배 되세요</Text>
 
         {/* AI CTA */}
         <Pressable
