@@ -12,7 +12,8 @@
       "Bash(git commit -q -m '빈 팀 상태 크래시 수정 — 동기화 완료까지 로딩 화면 *)",
       "Bash(git commit -q -m '프록시: 업스트림 에러 본문 로깅 *)",
       "Bash(git commit -q -m '이미지 mimeType 정규화 — HEIC 등 비허용 형식 400 에러 수정 *)",
-      "Bash(git commit -q -m '주보 업로드 화면 문구 — '\\\\''안녕하세요, 관리자님!'\\\\'' *)"
+      "Bash(git commit -q -m '주보 업로드 화면 문구 — '\\\\''안녕하세요, 관리자님!'\\\\'' *)",
+      "Bash(git commit -q -m '온보딩 단순화 — 교회 등록\\(관리자\\) 또는 초대코드 참여\\(팀원\\) *)"
     ]
   },
   "enabledPlugins": {

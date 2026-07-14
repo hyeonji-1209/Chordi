@@ -11,45 +11,27 @@ import {
   View,
 } from 'react-native';
 import { BulletinSetup } from '@/components/BulletinSetup';
-import { ServicePicker } from '@/components/ServicePicker';
 import { C, F } from '@/constants/theme';
-import { guessServiceDay } from '@/lib/date';
-import { createTeamRemote, joinTeamRemote } from '@/lib/db';
+import { joinTeamRemote } from '@/lib/db';
 import { useStore } from '@/store/useStore';
 
-type Mode = 'choice' | 'create' | 'join' | 'bulletin';
+type Mode = 'choice' | 'join' | 'bulletin';
 
 /** 첫 로그인 온보딩: 팀 만들기 or 초대코드로 참여 */
 export function TeamOnboarding() {
   const [mode, setMode] = useState<Mode>('choice');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const [day, setDay] = useState<number | undefined>(undefined);
-  const [dayTouched, setDayTouched] = useState(false); // 직접 고른 뒤엔 자동 추측 안 함
-  const [time, setTime] = useState('');
-
-  const onNameChange = (t: string) => {
-    setText(t);
-    if (mode === 'create' && !dayTouched) {
-      const guessed = guessServiceDay(t);
-      if (guessed !== undefined) setDay(guessed);
-    }
-  };
-
   const submit = async () => {
     const value = text.trim();
     if (!value) return;
     setBusy(true);
     try {
-      if (mode === 'create') await createTeamRemote(value, day, time);
-      else await joinTeamRemote(value);
+      await joinTeamRemote(value);
       await useStore.getState().initFromServer(); // 팀이 생기면 게이트가 자동으로 열림
     } catch (e) {
       const msg = e instanceof Error ? e.message : '오류가 발생했어요';
-      Alert.alert(
-        mode === 'create' ? '팀 생성 실패' : '입장 실패',
-        msg.includes('초대코드') ? '초대코드가 올바르지 않아요' : msg,
-      );
+      Alert.alert('입장 실패', msg.includes('초대코드') ? '초대코드가 올바르지 않아요' : msg);
       setBusy(false);
     }
   };
@@ -81,42 +63,27 @@ export function TeamOnboarding() {
       ) : mode === 'choice' ? (
         <View style={{ gap: 10, width: '100%' }}>
           <Pressable style={[st.cardBtn, { borderColor: C.primary }]} onPress={() => setMode('bulletin')}>
-            <Text style={st.cardTitle}>📷 주보로 교회 등록</Text>
-            <Text style={st.cardDesc}>주보 사진을 찍으면 예배별 찬양팀이 한 번에 만들어져요</Text>
-          </Pressable>
-          <Pressable style={st.cardBtn} onPress={() => setMode('create')}>
-            <Text style={st.cardTitle}>새 팀 만들기</Text>
-            <Text style={st.cardDesc}>내가 인도자예요. 팀 하나만 만들고 팀원을 초대할게요</Text>
+            <Text style={st.cardTitle}>📷 우리 교회 등록하기</Text>
+            <Text style={st.cardDesc}>관리자님이라면 — 주보 사진으로 예배별 찬양팀을 한 번에 만들어요</Text>
           </Pressable>
           <Pressable style={st.cardBtn} onPress={() => setMode('join')}>
             <Text style={st.cardTitle}>초대코드로 참여</Text>
-            <Text style={st.cardDesc}>인도자에게 받은 4자리 코드로 입장할게요</Text>
+            <Text style={st.cardDesc}>팀원이라면 — 인도자에게 받은 4자리 코드로 입장해요</Text>
           </Pressable>
         </View>
       ) : (
         <View style={{ gap: 10, width: '100%' }}>
           <TextInput
             style={st.input}
-            placeholder={mode === 'create' ? '팀 이름 (예: 목요예배 찬양팀)' : '초대코드 4자리'}
+            placeholder="초대코드 4자리"
             placeholderTextColor={C.faint}
             value={text}
-            onChangeText={onNameChange}
+            onChangeText={setText}
             autoFocus
-            autoCapitalize={mode === 'join' ? 'characters' : 'none'}
+            autoCapitalize="characters" 
             editable={!busy}
             onSubmitEditing={submit}
           />
-          {mode === 'create' && (
-            <ServicePicker
-              day={day}
-              time={time}
-              onChangeDay={(d) => {
-                setDay(d);
-                setDayTouched(true);
-              }}
-              onChangeTime={setTime}
-            />
-          )}
           <Pressable
             style={({ pressed }) => [st.primary, pressed && { backgroundColor: C.primaryDark }]}
             onPress={submit}
@@ -125,7 +92,7 @@ export function TeamOnboarding() {
             {busy ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
-              <Text style={st.primaryLabel}>{mode === 'create' ? '팀 만들기' : '입장하기'}</Text>
+              <Text style={st.primaryLabel}>입장하기</Text>
             )}
           </Pressable>
           <Pressable onPress={() => !busy && setMode('choice')} style={{ alignItems: 'center', padding: 8 }}>
