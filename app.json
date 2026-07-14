@@ -51,6 +51,14 @@
         {
           "savePhotosPermission": "악보 사진을 갤러리에 저장합니다."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
     ],
     "experiments": {

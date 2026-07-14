@@ -200,6 +200,10 @@ function getClient(): Anthropic {
     baseURL,
     dangerouslyAllowBrowser: true,
     fetch: fetchImpl,
+    // 공개 서버 프록시용 검문 키 (프록시의 CHORDI_PROXY_SECRET과 일치해야 함)
+    defaultHeaders: process.env.EXPO_PUBLIC_AI_PROXY_KEY
+      ? { 'x-chordi-key': process.env.EXPO_PUBLIC_AI_PROXY_KEY }
+      : undefined,
   });
   return client;
 }

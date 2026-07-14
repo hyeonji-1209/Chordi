@@ -1,8 +1,12 @@
-// Chordi 로컬 AI 프록시
-// 앱 → (LAN) → 이 프록시 → api.anthropic.com
-// 인증은 `ant auth login`으로 저장된 로컬 OAuth 프로필을 사용한다.
-// 토큰은 수명이 짧으므로 매번 `ant auth print-credentials --access-token`으로
-// 가져온다 (필요 시 ant가 알아서 갱신).
+// Chordi AI 프록시
+// 앱 → 이 프록시 → api.anthropic.com
+//
+// 인증 (둘 중 하나):
+//  - ANTHROPIC_API_KEY 환경변수 → API 키로 호출 (서버/VM 배포용)
+//  - 없으면 `ant auth login` 로컬 OAuth 프로필 사용 (맥 개발용)
+//
+// 공개 서버에서는 CHORDI_PROXY_SECRET을 설정하면
+// x-chordi-key 헤더가 일치하는 요청만 통과시킨다.
 //
 // 실행: npm run proxy   (기본 포트 8787)
 
@@ -16,6 +20,8 @@ import { fileURLToPath } from 'node:url';
 const PORT = Number(process.env.PORT ?? 8787);
 const UPSTREAM = 'https://api.anthropic.com';
 const OAUTH_BETA = 'oauth-2025-04-20';
+const API_KEY = process.env.ANTHROPIC_API_KEY || null; // 있으면 API 키 모드
+const PROXY_SECRET = process.env.CHORDI_PROXY_SECRET || null; // 있으면 검문 활성화
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const AUDIVERIS =
@@ -45,17 +51,21 @@ async function forward(req, body, token) {
   const headers = {
     'content-type': req.headers['content-type'] ?? 'application/json',
     'anthropic-version': req.headers['anthropic-version'] ?? '2023-06-01',
-    authorization: `Bearer ${token}`,
   };
-  // 클라이언트가 보낸 beta 헤더에 oauth beta를 합친다
   const betas = new Set(
     String(req.headers['anthropic-beta'] ?? '')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean),
   );
-  betas.add(OAUTH_BETA);
-  headers['anthropic-beta'] = [...betas].join(',');
+  if (API_KEY) {
+    headers['x-api-key'] = API_KEY;
+  } else {
+    // 로컬 OAuth 모드 — oauth beta 헤더 필요
+    headers.authorization = `Bearer ${token}`;
+    betas.add(OAUTH_BETA);
+  }
+  if (betas.size) headers['anthropic-beta'] = [...betas].join(',');
 
   return fetch(UPSTREAM + req.url, { method: req.method, headers, body: body.length ? body : undefined });
 }
@@ -121,6 +131,13 @@ async function omrToAbc(images) {
 }
 
 const server = http.createServer(async (req, res) => {
+  // 검문: 공개 서버에서는 앱에서 보낸 x-chordi-key가 일치해야 통과
+  if (PROXY_SECRET && req.headers['x-chordi-key'] !== PROXY_SECRET) {
+    res.writeHead(403, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ type: 'error', error: { type: 'forbidden', message: '접근 키가 없어요' } }));
+    return;
+  }
+
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
   const body = Buffer.concat(chunks);
@@ -144,9 +161,9 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
-    let token = await getToken();
+    let token = API_KEY ? null : await getToken();
     let upstream = await forward(req, body, token);
-    if (upstream.status === 401) {
+    if (!API_KEY && upstream.status === 401) {
       // 토큰 만료 → 강제 갱신 후 1회 재시도
       token = await getToken(true);
       upstream = await forward(req, body, token);
@@ -184,5 +201,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`Chordi AI 프록시 시작 — 포트 ${PORT}`);
   console.log(`  시뮬레이터: http://localhost:${PORT}`);
   for (const ip of nets) console.log(`  실기기(Expo Go): http://${ip}:${PORT}`);
-  console.log('인증: ant 로컬 프로필 (ant auth status로 확인)');
+  console.log(`인증: ${API_KEY ? 'ANTHROPIC_API_KEY (서버 모드)' : 'ant 로컬 프로필 (ant auth status로 확인)'}`);
+  console.log(`검문: ${PROXY_SECRET ? 'x-chordi-key 활성화' : '없음 (로컬 전용 권장)'}`);
 });
