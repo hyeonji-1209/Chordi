@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -15,7 +16,7 @@ import { WebView } from 'react-native-webview';
 import { SheetMusic } from '@/components/SheetMusic';
 import { C, F } from '@/constants/theme';
 import { chipText, formToText, textToForm } from '@/lib/form';
-import { getSheetImageUrls } from '@/lib/sheets';
+import { getSheetImageUrls, saveSheetImagesToGallery } from '@/lib/sheets';
 import { semitonesBetween, shiftKey, transposeLine } from '@/lib/transpose';
 import { useStore } from '@/store/useStore';
 import type { FormChip } from '@/data/types';
@@ -41,6 +42,17 @@ export default function SheetScreen() {
   const [viewMode, setViewMode] = useState<'chart' | 'score' | 'original'>('chart'); // 차트/오선보/원본
   const [youtubeOpen, setYoutubeOpen] = useState(false); // 악보 보면서 음원 듣기
   const [originalUrls, setOriginalUrls] = useState<string[]>([]); // 원본 사진 서명 URL
+  const [saving, setSaving] = useState(false);
+
+  const downloadOriginals = async () => {
+    if (!originalUrls.length) return;
+    setSaving(true);
+    const n = await saveSheetImagesToGallery(originalUrls);
+    setSaving(false);
+    if (n > 0) Alert.alert('저장 완료', `악보 ${n}장을 갤러리에 저장했어요.`);
+    else if (n === 0) Alert.alert('권한 필요', '설정에서 사진 저장 권한을 허용해 주세요.');
+    else Alert.alert('저장 실패', '앱을 최신 버전으로 업데이트한 뒤 다시 시도해 주세요.');
+  };
 
   // 원본 보기 진입 시 서명 URL 발급 (팀 멤버만 가능)
   useEffect(() => {
@@ -154,13 +166,20 @@ export default function SheetScreen() {
       {viewMode === 'original' && song.imageUrls?.length ? (
         // 원본 악보 사진 — 팀 멤버용 서명 URL로 로드, WebView라 핀치 줌 가능
         <View style={{ flex: 1 }}>
-          {currentKey !== song.originalKey && (
-            <View style={st.originalNotice}>
-              <Text style={st.originalNoticeText}>
-                원본은 원키({song.originalKey}) 악보예요 — {currentKey}키 코드는 차트 탭에서
-              </Text>
-            </View>
-          )}
+          <View style={st.originalBar}>
+            <Text style={st.originalNoticeText}>
+              {currentKey !== song.originalKey
+                ? `원본은 원키(${song.originalKey}) 악보예요`
+                : `원본 악보 · ${song.imageUrls.length}장`}
+            </Text>
+            <Pressable style={st.downloadBtn} onPress={downloadOriginals} disabled={saving}>
+              {saving ? (
+                <ActivityIndicator size="small" color={C.goldDark} />
+              ) : (
+                <Text style={st.downloadLabel}>↓ 저장</Text>
+              )}
+            </Pressable>
+          </View>
           {originalUrls.length ? (
             <WebView
               style={{ flex: 1, backgroundColor: '#fff' }}
@@ -168,7 +187,7 @@ export default function SheetScreen() {
               source={{
                 html: `<!DOCTYPE html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
-<style>body{margin:0;background:#fff}img{width:100%;display:block;margin-bottom:8px}</style></head>
+<style>body{margin:0;background:#fff;padding-bottom:48px}img{width:100%;display:block;margin-bottom:8px}</style></head>
 <body>${originalUrls.map((u) => `<img src="${u}">`).join('')}</body></html>`,
               }}
             />
@@ -599,13 +618,25 @@ const st = StyleSheet.create({
     paddingVertical: 6,
   },
   transcribingLabel: { fontFamily: F.sansMedium, fontSize: 11.5, color: C.primaryText },
-  originalNotice: {
+  originalBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: C.goldBg,
     borderBottomWidth: 1,
     borderColor: C.goldBorder,
     paddingHorizontal: 16,
-    paddingVertical: 7,
+    paddingVertical: 6,
   },
+  downloadBtn: {
+    borderWidth: 1,
+    borderColor: C.goldBorder,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#fff',
+  },
+  downloadLabel: { fontFamily: F.sansBold, fontSize: 11.5, color: C.goldDark },
   originalNoticeText: { fontFamily: F.sansMedium, fontSize: 11.5, color: C.goldDark },
   navBtn: {
     flex: 1,

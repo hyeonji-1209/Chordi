@@ -38,6 +38,30 @@ export async function uploadSheetImages(
   return paths;
 }
 
+/** 원본 악보를 폰 갤러리에 저장. 저장한 장 수 반환 (미지원 환경이면 -1) */
+export async function saveSheetImagesToGallery(urls: string[]): Promise<number> {
+  try {
+    // 동적 import — 구버전 개발 빌드(모듈 미포함)에서 앱이 죽지 않게
+    const MediaLibrary = await import('expo-media-library');
+    const FileSystem = await import('expo-file-system/legacy');
+
+    const { status } = await MediaLibrary.requestPermissionsAsync();
+    if (status !== 'granted') return 0;
+
+    let saved = 0;
+    for (let i = 0; i < urls.length; i++) {
+      const dest = `${FileSystem.cacheDirectory}sheet-${Date.now()}-${i + 1}.jpg`;
+      const dl = await FileSystem.downloadAsync(urls[i], dest);
+      await MediaLibrary.saveToLibraryAsync(dl.uri);
+      saved++;
+    }
+    return saved;
+  } catch (e) {
+    console.warn('[sheets] 갤러리 저장 실패:', e instanceof Error ? e.message : e);
+    return -1;
+  }
+}
+
 /** 저장 경로 → 서명 URL (1시간 유효). 팀 멤버만 발급 가능 (RLS) */
 export async function getSheetImageUrls(paths: string[]): Promise<string[]> {
   if (!supabase || paths.length === 0) return [];

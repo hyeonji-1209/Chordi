@@ -45,6 +45,12 @@
         {
           "faceIDPermission": "Face ID로 Chordi 잠금을 해제합니다."
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "악보 사진을 갤러리에 저장합니다."
+        }
       ]
     ],
     "experiments": {
