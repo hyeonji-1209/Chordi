@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KeyBadge, ScreenTitle, SheetThumb } from '@/components/ui';
 import { C, F } from '@/constants/theme';
+import { normalizeImageType } from '@/lib/media';
 import { analyzeSong } from '@/lib/ai';
 import { uploadSheetImages } from '@/lib/sheets';
 import { formToText } from '@/lib/form';
@@ -69,7 +70,7 @@ export default function SongsScreen() {
     if (result.canceled) return;
     const images = result.assets
       .filter((a) => a.base64)
-      .map((a) => ({ base64: a.base64 as string, mediaType: a.mimeType ?? 'image/jpeg' }));
+      .map((a) => ({ base64: a.base64 as string, mediaType: normalizeImageType(a.mimeType) }));
     if (images.length === 0) return;
 
     setUploading(true);

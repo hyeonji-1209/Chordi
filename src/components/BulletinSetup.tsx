@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { C, F } from '@/constants/theme';
+import { normalizeImageType } from '@/lib/media';
 import { parseBulletin } from '@/lib/ai';
 import { createChurchWithTeamsRemote } from '@/lib/db';
 import { useStore } from '@/store/useStore';
@@ -41,7 +42,7 @@ export function BulletinSetup({ onDone }: { onDone: () => void }) {
     if (result.canceled) return;
     const images = result.assets
       .filter((a) => a.base64)
-      .map((a) => ({ base64: a.base64 as string, mediaType: a.mimeType ?? 'image/jpeg' }));
+      .map((a) => ({ base64: a.base64 as string, mediaType: normalizeImageType(a.mimeType) }));
     if (!images.length) return;
 
     setParsing(true);

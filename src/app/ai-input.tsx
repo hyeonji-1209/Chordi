@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '@/constants/theme';
+import { normalizeImageType } from '@/lib/media';
 import { useStore } from '@/store/useStore';
 
 const PLACEHOLDER =
@@ -50,7 +51,7 @@ export default function AiInputScreen() {
       .map((a) => ({
         uri: a.uri,
         base64: a.base64 as string,
-        mediaType: a.mimeType ?? 'image/jpeg',
+        mediaType: normalizeImageType(a.mimeType),
       }));
     setAiImages([...images, ...picked]);
   };
