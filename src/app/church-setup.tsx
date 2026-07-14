@@ -16,8 +16,8 @@ export default function ChurchSetupScreen() {
           <Text style={{ fontSize: 16, color: C.ink }}>‹</Text>
         </Pressable>
         <View>
-          <Text style={st.title}>주보로 교회 등록</Text>
-          <Text style={st.sub}>주보 사진을 찍으면 예배별 찬양팀이 한 번에 만들어져요</Text>
+          <Text style={st.title}>안녕하세요, 관리자님!</Text>
+          <Text style={st.sub}>교회의 예배 시간 주보를 업로드해 주세요 — 예배별 팀을 한 번에 만들어요</Text>
         </View>
       </View>
       <View style={{ paddingHorizontal: 20, flex: 1 }}>

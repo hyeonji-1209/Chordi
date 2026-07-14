@@ -11,7 +11,8 @@
       "Bash(git commit -q -m '유령 세션 정리 — 서버에서 계정이 지워졌으면 자동 로그아웃 *)",
       "Bash(git commit -q -m '빈 팀 상태 크래시 수정 — 동기화 완료까지 로딩 화면 *)",
       "Bash(git commit -q -m '프록시: 업스트림 에러 본문 로깅 *)",
-      "Bash(git commit -q -m '이미지 mimeType 정규화 — HEIC 등 비허용 형식 400 에러 수정 *)"
+      "Bash(git commit -q -m '이미지 mimeType 정규화 — HEIC 등 비허용 형식 400 에러 수정 *)",
+      "Bash(git commit -q -m '주보 업로드 화면 문구 — '\\\\''안녕하세요, 관리자님!'\\\\'' *)"
     ]
   },
   "enabledPlugins": {

@@ -61,8 +61,14 @@ export function TeamOnboarding() {
     >
       <View style={{ alignItems: 'center', gap: 8 }}>
         <Text style={{ fontSize: 22, color: C.goldDark }}>✦</Text>
-        <Text style={st.title}>어느 찬양팀인가요?</Text>
-        <Text style={st.subtitle}>팀 이름이 곧 예배예요 — 주일 1부, 목요예배, 청년부…</Text>
+        <Text style={st.title}>
+          {mode === 'bulletin' ? '안녕하세요, 관리자님!' : '어느 찬양팀인가요?'}
+        </Text>
+        <Text style={st.subtitle}>
+          {mode === 'bulletin'
+            ? '교회의 예배 시간이 담긴 주보를 업로드해 주세요\n예배별 찬양팀을 한 번에 만들어 드려요'
+            : '팀 이름이 곧 예배예요 — 주일 1부, 목요예배, 청년부…'}
+        </Text>
       </View>
 
       {mode === 'bulletin' ? (
