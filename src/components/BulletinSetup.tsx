@@ -89,7 +89,7 @@ export function BulletinSetup({ onDone }: { onDone: () => void }) {
             </>
           ) : (
             <>
-              <Text style={{ fontSize: 20 }}>📷</Text>
+              <Text style={{ fontSize: 18, color: C.primary }}>✦</Text>
               <Text style={st.pickLabel}>주보 사진 선택</Text>
               <Text style={st.pickDesc}>예배 목록을 읽어서 예배별 팀을 한 번에 만들어요</Text>
             </>

@@ -222,9 +222,11 @@ export default function AiReviewScreen() {
                         </>
                       )}
                       <KeyBadge k={song.targetKey} />
-                      {song.notes.map((n) => (
-                        <GoldTag key={n}>{n}</GoldTag>
-                      ))}
+                      {song.notes
+                        .filter((n) => !(song.linkedToPrev && n.includes('이어서')))
+                        .map((n) => (
+                          <GoldTag key={n}>{n}</GoldTag>
+                        ))}
                       {song.linkedToPrev && <GoldTag>앞 곡과 이어서</GoldTag>}
                     </View>
                     {song.evidence && <Text style={st.evidence}>“{song.evidence}” ← 적으신 말</Text>}

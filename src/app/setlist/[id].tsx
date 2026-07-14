@@ -130,7 +130,7 @@ export default function SetlistScreen() {
             <View key={`${item.songId}-${i}`}>
               {item.linkedToPrev && !editMode && (
                 <View style={st.linkRow}>
-                  <Text style={st.linkChip}>⛓ 간주 없이 이어서</Text>
+                  <Text style={st.linkChip}>∿ 간주 없이 이어서</Text>
                 </View>
               )}
               <Pressable

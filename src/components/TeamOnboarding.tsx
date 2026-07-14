@@ -63,7 +63,7 @@ export function TeamOnboarding() {
       ) : mode === 'choice' ? (
         <View style={{ gap: 10, width: '100%' }}>
           <Pressable style={[st.cardBtn, { borderColor: C.primary }]} onPress={() => setMode('bulletin')}>
-            <Text style={st.cardTitle}>📷 우리 교회 등록하기</Text>
+            <Text style={st.cardTitle}>우리 교회 등록하기</Text>
             <Text style={st.cardDesc}>관리자님이라면 — 주보 사진으로 예배별 찬양팀을 한 번에 만들어요</Text>
           </Pressable>
           <Pressable style={st.cardBtn} onPress={() => setMode('join')}>
