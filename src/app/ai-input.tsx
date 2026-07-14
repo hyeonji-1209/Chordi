@@ -2,6 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -14,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '@/constants/theme';
+import { nextServiceDate, nextServiceLabel } from '@/lib/date';
 import { normalizeImageType } from '@/lib/media';
 import { useStore } from '@/store/useStore';
 
@@ -59,6 +61,28 @@ export default function AiInputScreen() {
   const removeImage = (uri: string) => setAiImages(images.filter((i) => i.uri !== uri));
 
   const canSubmit = images.length > 0 && prompt.trim().length > 0;
+
+  const goReview = () => {
+    // 이 팀의 다가오는 예배에 이미 콘티가 있으면 AI를 돌리기 전에 확인
+    const team = useStore.getState().aiTargetTeam();
+    const d = nextServiceDate(team.serviceDay);
+    const datePrefix = `${d.getMonth() + 1}월 ${d.getDate()}일`;
+    const existing = useStore
+      .getState()
+      .setlists.find((sl) => sl.teamId === team.id && sl.title.startsWith(datePrefix));
+    if (existing) {
+      Alert.alert(
+        '잠깐만요!',
+        `이번 ${nextServiceLabel(team.serviceDay)}에는 이미 "${existing.title}" 콘티가 있어요.\n새로 만들면 덮어쓰게 돼요. 계속할까요?`,
+        [
+          { text: '취소', style: 'cancel' },
+          { text: '계속 만들기', style: 'destructive', onPress: () => router.push('/ai-review') },
+        ],
+      );
+      return;
+    }
+    router.push('/ai-review');
+  };
 
   return (
     <KeyboardAvoidingView
@@ -143,7 +167,7 @@ export default function AiInputScreen() {
       <View style={[st.footer, { paddingBottom: insets.bottom + 14 }]}>
         <Pressable
           disabled={!canSubmit}
-          onPress={() => router.push('/ai-review')}
+          onPress={goReview}
           style={({ pressed }) => [
             st.submit,
             !canSubmit && { opacity: 0.4 },
