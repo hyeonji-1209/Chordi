@@ -155,6 +155,13 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(upstream.status, {
       'content-type': upstream.headers.get('content-type') ?? 'application/json',
     });
+    // 에러 응답은 본문을 로그에 남긴다 (원인 파악용)
+    if (!upstream.ok) {
+      const text = await upstream.text();
+      console.log('  ⚠️ 업스트림 에러:', text.slice(0, 400));
+      res.end(text);
+      return;
+    }
     // SSE 스트리밍 응답을 도착하는 대로 흘려보낸다
     if (upstream.body) {
       for await (const chunk of upstream.body) res.write(chunk);
