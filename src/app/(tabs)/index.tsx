@@ -12,7 +12,6 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const team = useStore((s) => s.currentTeam());
   const setlists = useStore((s) => s.setlists);
-  const songs = useStore((s) => s.songs);
   const songById = useStore((s) => s.songById);
 
   const setlist = useMemo(

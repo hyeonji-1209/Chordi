@@ -118,7 +118,7 @@ export default function SetlistScreen() {
       {!editMode && (
       <Pressable style={st.voicePill} onPress={() => setEditOpen(true)}>
         <Text style={{ color: C.goldDark, fontSize: 14 }}>✦</Text>
-        <Text style={st.voiceText}>"2번곡 한 키 내려줘" 처럼 말로 수정</Text>
+        <Text style={st.voiceText}>“2번곡 한 키 내려줘” 처럼 말로 수정</Text>
       </Pressable>
       )}
 

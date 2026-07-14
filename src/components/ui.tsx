@@ -1,13 +1,5 @@
 import React from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type TextStyle,
-  type ViewStyle,
-} from 'react-native';
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import { C, F } from '@/constants/theme';
 
 export function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -28,56 +20,6 @@ export function KeyBadge({ k, muted }: { k: string; muted?: boolean }) {
 
 export function GoldTag({ children }: { children: React.ReactNode }) {
   return <Text style={st.goldTag}>{children}</Text>;
-}
-
-export function PrimaryButton({
-  label,
-  onPress,
-  icon,
-  style,
-  dark,
-}: {
-  label: string;
-  onPress?: () => void;
-  icon?: React.ReactNode;
-  style?: StyleProp<ViewStyle>;
-  dark?: boolean;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        st.primaryBtn,
-        dark && { backgroundColor: C.ink, shadowOpacity: 0 },
-        pressed && { opacity: 0.85 },
-        style,
-      ]}
-    >
-      {icon}
-      <Text style={st.primaryBtnLabel}>{label}</Text>
-    </Pressable>
-  );
-}
-
-export function GhostButton({
-  label,
-  onPress,
-  style,
-  labelStyle,
-}: {
-  label: string;
-  onPress?: () => void;
-  style?: StyleProp<ViewStyle>;
-  labelStyle?: StyleProp<TextStyle>;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [st.ghostBtn, pressed && { borderColor: C.primary }, style]}
-    >
-      <Text style={[st.ghostBtnLabel, labelStyle]}>{label}</Text>
-    </Pressable>
-  );
 }
 
 export function Avatar({ name, gold, size = 34 }: { name: string; gold?: boolean; size?: number }) {
@@ -142,39 +84,6 @@ const st = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     overflow: 'hidden',
-  },
-  primaryBtn: {
-    flexDirection: 'row',
-    gap: 7,
-    backgroundColor: C.primary,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: C.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
-  },
-  primaryBtnLabel: {
-    fontFamily: F.sansBold,
-    fontSize: 15,
-    color: '#fff',
-  },
-  ghostBtn: {
-    backgroundColor: C.card,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ghostBtnLabel: {
-    fontFamily: F.sansBold,
-    fontSize: 14,
-    color: C.ink,
   },
   thumb: {
     borderRadius: 7,

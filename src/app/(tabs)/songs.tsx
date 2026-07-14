@@ -32,7 +32,6 @@ export default function SongsScreen() {
   const updateSong = useStore((s) => s.updateSong);
   const deleteSong = useStore((s) => s.deleteSong);
   const canEditSong = useStore((s) => s.canEditSong);
-  const songById = useStore((s) => s.songById);
 
   const [query, setQuery] = useState('');
   const [uploading, setUploading] = useState(false);

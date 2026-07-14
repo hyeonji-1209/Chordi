@@ -8,7 +8,7 @@ function noteIndex(note: string): number {
   return FLAT_SCALE.indexOf(note);
 }
 
-export function transposeNote(note: string, semitones: number, preferFlat: boolean): string {
+function transposeNote(note: string, semitones: number, preferFlat: boolean): string {
   const i = noteIndex(note);
   if (i < 0) return note;
   const j = (((i + semitones) % 12) + 12) % 12;
@@ -23,7 +23,7 @@ export function semitonesBetween(fromKey: string, toKey: string): number {
 }
 
 /** "G/B" "Dsus4" "Em7" 같은 코드 심볼 하나를 이조 */
-export function transposeChord(chord: string, semitones: number, preferFlat: boolean): string {
+function transposeChord(chord: string, semitones: number, preferFlat: boolean): string {
   if (semitones === 0) return chord;
   return chord.replace(/([A-G][#b]?)/g, (m) => transposeNote(m, semitones, preferFlat));
 }

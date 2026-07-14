@@ -11,21 +11,25 @@ import { C, F } from '@/constants/theme';
 export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
   const [failed, setFailed] = useState(false);
 
-  const tryAuth = useCallback(async () => {
-    setFailed(false);
+  /** 인증 시도. 통과/생체인증 불가 기기면 true, 실패·취소면 false */
+  const runAuth = useCallback(async (): Promise<boolean> => {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const enrolled = await LocalAuthentication.isEnrolledAsync();
     if (!hasHardware || !enrolled) {
       onUnlock(); // 생체인증을 쓸 수 없는 기기는 잠그지 않음
-      return;
+      return true;
     }
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: 'Chordi 잠금 해제',
       cancelLabel: '취소',
     });
     if (result.success) onUnlock();
-    else setFailed(true);
+    return result.success;
   }, [onUnlock]);
+
+  const tryAuth = useCallback(() => {
+    runAuth().then((ok) => setFailed(!ok));
+  }, [runAuth]);
 
   useEffect(() => {
     tryAuth();
@@ -38,7 +42,10 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
       {failed && (
         <Pressable
           style={({ pressed }) => [st.btn, pressed && { backgroundColor: C.primaryDark }]}
-          onPress={tryAuth}
+          onPress={() => {
+            setFailed(false);
+            tryAuth();
+          }}
         >
           <Text style={st.btnLabel}>잠금 해제</Text>
         </Pressable>

@@ -176,51 +176,9 @@ export async function deleteSongRemote(songId: string) {
 }
 
 // ── 콘티 ──
-export async function upsertSetlistRemote(setlist: Setlist, createdBy: string, replaceId?: string) {
+/** 곡목을 통째로 지우고 다시 넣는다 (position 재계산) */
+async function replaceItems(setlistId: string, items: Setlist['items']) {
   const client = sb();
-  if (replaceId) {
-    await client.from('setlists').delete().eq('id', replaceId);
-  }
-  const { error } = await client.from('setlists').upsert({
-    id: setlist.id,
-    team_id: setlist.teamId,
-    title: setlist.title,
-    subtitle: setlist.subtitle,
-    leader: setlist.leader,
-    created_by: createdBy,
-  });
-  if (error) throw error;
-
-  await client.from('setlist_items').delete().eq('setlist_id', setlist.id);
-  const { error: iErr } = await client.from('setlist_items').insert(
-    setlist.items.map((it, i) => ({
-      setlist_id: setlist.id,
-      song_id: it.songId,
-      position: i,
-      key: it.key,
-      note: it.note ?? null,
-      sub_note: it.subNote ?? null,
-      linked_to_prev: it.linkedToPrev ?? false,
-    })),
-  );
-  if (iErr) throw iErr;
-}
-
-export async function deleteSetlistRemote(setlistId: string) {
-  const { error } = await sb().from('setlists').delete().eq('id', setlistId);
-  if (error) throw error;
-}
-
-/** 콘티 곡목 전체 교체 (수정 모드 저장) */
-export async function replaceSetlistItemsRemote(
-  setlistId: string,
-  items: Setlist['items'],
-  subtitle?: string,
-) {
-  const client = sb();
-  if (subtitle) {
-    await client.from('setlists').update({ subtitle }).eq('id', setlistId);
-  }
   const { error: dErr } = await client.from('setlist_items').delete().eq('setlist_id', setlistId);
   if (dErr) throw dErr;
   const { error } = await client.from('setlist_items').insert(
@@ -235,6 +193,40 @@ export async function replaceSetlistItemsRemote(
     })),
   );
   if (error) throw error;
+}
+
+export async function upsertSetlistRemote(setlist: Setlist, createdBy: string, replaceId?: string) {
+  const client = sb();
+  if (replaceId) {
+    await client.from('setlists').delete().eq('id', replaceId);
+  }
+  const { error } = await client.from('setlists').upsert({
+    id: setlist.id,
+    team_id: setlist.teamId,
+    title: setlist.title,
+    subtitle: setlist.subtitle,
+    leader: setlist.leader,
+    created_by: createdBy,
+  });
+  if (error) throw error;
+  await replaceItems(setlist.id, setlist.items);
+}
+
+export async function deleteSetlistRemote(setlistId: string) {
+  const { error } = await sb().from('setlists').delete().eq('id', setlistId);
+  if (error) throw error;
+}
+
+/** 콘티 곡목 전체 교체 (수정 모드 저장) */
+export async function replaceSetlistItemsRemote(
+  setlistId: string,
+  items: Setlist['items'],
+  subtitle?: string,
+) {
+  if (subtitle) {
+    await sb().from('setlists').update({ subtitle }).eq('id', setlistId);
+  }
+  await replaceItems(setlistId, items);
 }
 
 export async function patchItemRemote(

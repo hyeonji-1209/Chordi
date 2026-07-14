@@ -29,18 +29,3 @@ export function guessServiceDay(teamName: string): number | undefined {
   for (const [re, day] of rules) if (re.test(teamName)) return day;
   return undefined;
 }
-
-/** @deprecated nextServiceLabel 사용 */
-export function nextSundayLabel(base = new Date()): string {
-  return nextServiceLabel(0, base);
-}
-
-/** AI에 넘길 오늘 날짜 문자열 */
-export function todayLabel(base = new Date()): string {
-  return base.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  });
-}

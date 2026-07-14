@@ -227,7 +227,7 @@ export default function AiReviewScreen() {
                       ))}
                       {song.linkedToPrev && <GoldTag>앞 곡과 이어서</GoldTag>}
                     </View>
-                    {song.evidence && <Text style={st.evidence}>"{song.evidence}" ← 적으신 말</Text>}
+                    {song.evidence && <Text style={st.evidence}>“{song.evidence}” ← 적으신 말</Text>}
                   </View>
                   <View style={st.check}>
                     <Text style={{ fontSize: 12, color: C.primary, fontWeight: '700' }}>✓</Text>
