@@ -22,6 +22,24 @@ const UPSTREAM = 'https://api.anthropic.com';
 const OAUTH_BETA = 'oauth-2025-04-20';
 const API_KEY = process.env.ANTHROPIC_API_KEY || null; // 있으면 API 키 모드
 const PROXY_SECRET = process.env.CHORDI_PROXY_SECRET || null; // 있으면 검문 활성화
+// 사용량 제한 (비용 폭주 방지) — AI 호출(POST /v1/*)에만 적용
+const DAILY_LIMIT = Number(process.env.CHORDI_DAILY_LIMIT ?? 300); // 전체 하루 한도
+const IP_HOURLY_LIMIT = Number(process.env.CHORDI_IP_HOURLY_LIMIT ?? 30); // IP당 시간 한도
+
+const usage = { day: '', count: 0, perIp: new Map() }; // perIp: ip → {hour, count}
+function overLimit(ip) {
+  const now = new Date();
+  const day = now.toISOString().slice(0, 10);
+  const hour = `${day}T${now.getUTCHours()}`;
+  if (usage.day !== day) Object.assign(usage, { day, count: 0, perIp: new Map() });
+  const ipRec = usage.perIp.get(ip) ?? { hour, count: 0 };
+  if (ipRec.hour !== hour) Object.assign(ipRec, { hour, count: 0 });
+  if (usage.count >= DAILY_LIMIT || ipRec.count >= IP_HOURLY_LIMIT) return true;
+  usage.count += 1;
+  ipRec.count += 1;
+  usage.perIp.set(ip, ipRec);
+  return false;
+}
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const AUDIVERIS =
@@ -136,6 +154,17 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(403, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ type: 'error', error: { type: 'forbidden', message: '접근 키가 없어요' } }));
     return;
+  }
+
+  // 사용량 제한 — AI 호출만 카운트
+  if (req.method === 'POST' && req.url.startsWith('/v1/')) {
+    const ip = req.socket.remoteAddress ?? 'unknown';
+    if (overLimit(ip)) {
+      console.log(`  ⛔ 사용량 제한: ${ip}`);
+      res.writeHead(429, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ type: 'error', error: { type: 'rate_limit_error', message: '오늘 사용량이 가득 찼어요. 내일 다시 시도해 주세요.' } }));
+      return;
+    }
   }
 
   const chunks = [];

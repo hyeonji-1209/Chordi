@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chordi 개인정보처리방침</title>
+<style>
+  body { font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+         max-width: 720px; margin: 0 auto; padding: 32px 20px; color: #23241F; line-height: 1.7;
+         background: #F5F2EA; }
+  h1 { font-size: 26px; } h2 { font-size: 18px; margin-top: 32px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { border: 1px solid #DDD6C8; padding: 8px 10px; text-align: left; }
+  th { background: #EDE9DE; }
+  .updated { color: #8A857A; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>✦ Chordi 개인정보처리방침</h1>
+<p class="updated">시행일: 2026년 7월 20일</p>
+
+<p>Chordi(이하 "앱")는 교회 찬양팀의 콘티(찬양 목록)와 악보를 관리하는 서비스입니다.
+앱은 이용자의 개인정보를 소중히 여기며, 관련 법령에 따라 아래와 같이 처리합니다.</p>
+
+<h2>1. 수집하는 개인정보</h2>
+<table>
+  <tr><th>항목</th><th>수집 시점</th><th>목적</th></tr>
+  <tr><td>이름, 이메일, 프로필 정보</td><td>구글/카카오 로그인 시</td><td>계정 식별, 팀 멤버 표시</td></tr>
+  <tr><td>악보·주보 사진</td><td>이용자가 직접 업로드할 때</td><td>콘티 생성, 악보 보기, 예배 목록 인식</td></tr>
+  <tr><td>푸시 알림 토큰</td><td>알림 권한 허용 시</td><td>새 콘티 알림 발송</td></tr>
+</table>
+
+<h2>2. AI 처리 안내</h2>
+<p>이용자가 업로드한 악보·주보 사진과 요청 문구는 콘티 생성과 예배 목록 인식을 위해
+Anthropic의 AI 모델(Claude)로 전송되어 처리됩니다. 전송된 데이터는 AI 모델 학습에
+사용되지 않으며, 처리 목적 외에는 이용되지 않습니다.</p>
+
+<h2>3. 보관 및 파기</h2>
+<p>개인정보와 업로드한 사진은 Supabase(클라우드 데이터베이스)에 암호화 연결로 저장되며,
+이용자가 데이터를 삭제하거나 계정을 탈퇴하면 지체 없이 파기됩니다.
+악보 사진은 팀 멤버만 접근할 수 있는 비공개 저장소에 보관됩니다.</p>
+
+<h2>4. 제3자 제공 및 처리 위탁</h2>
+<table>
+  <tr><th>수탁자</th><th>위탁 내용</th></tr>
+  <tr><td>Supabase Inc.</td><td>데이터베이스·인증·파일 저장</td></tr>
+  <tr><td>Anthropic PBC</td><td>악보·주보 사진 AI 인식 처리</td></tr>
+  <tr><td>Google LLC / Kakao Corp.</td><td>소셜 로그인</td></tr>
+  <tr><td>Expo (650 Industries)</td><td>푸시 알림 전송</td></tr>
+</table>
+<p>위 항목 외에 개인정보를 제3자에게 판매하거나 제공하지 않습니다.</p>
+
+<h2>5. 이용자의 권리</h2>
+<p>이용자는 언제든지 앱 내에서 자신이 올린 곡·콘티를 삭제할 수 있으며,
+계정 삭제(탈퇴)를 원하시면 아래 연락처로 요청해 주세요. 지체 없이 처리해 드립니다.</p>
+
+<h2>6. 문의</h2>
+<p>개인정보 관련 문의: <a href="mailto:hyeonjijang@weknew.com">hyeonjijang@weknew.com</a></p>
+
+<p class="updated">본 방침이 변경되는 경우 앱 또는 본 페이지를 통해 고지합니다.</p>
+</body>
+</html>
