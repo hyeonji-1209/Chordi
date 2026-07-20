@@ -25,7 +25,13 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://kymcoxwtcglyvqmzjnto.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt5bWNveHd0Y2dseXZxbXpqbnRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5MTk3NTksImV4cCI6MjA5OTQ5NTc1OX0.X2o3_fw__eIjSnhmdKYVe7icLtBuxZm2AG_p63ZRtig",
+        "EXPO_PUBLIC_AI_PROXY_URL": "http://VM_IP_여기에:8787",
+        "EXPO_PUBLIC_AI_PROXY_KEY": "검문키_여기에"
+      }
     }
   },
   "submit": {
