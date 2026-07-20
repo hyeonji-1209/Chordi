@@ -15,6 +15,7 @@ import { KeyBadge, GoldTag, SheetThumb } from '@/components/ui';
 import { C, F } from '@/constants/theme';
 import { generateSetlist } from '@/lib/ai';
 import { nextServiceLabel } from '@/lib/date';
+import { useAiCreditRemote } from '@/lib/db';
 import { notifyTeamMembers } from '@/lib/push';
 import { uploadSheetImages } from '@/lib/sheets';
 import { useStore } from '@/store/useStore';
@@ -32,6 +33,20 @@ export default function AiReviewScreen() {
 
   const run = useCallback(async () => {
     setAiLoading(true);
+
+    // 플랜별 월 생성 한도 확인·차감 (서버에서 집계 — 앱 조작으로 못 뚫음)
+    const team = useStore.getState().aiTargetTeam();
+    const credit = await useAiCreditRemote(team.id);
+    if (credit && !credit.ok) {
+      setAiResult(null);
+      Alert.alert(
+        '이번 달 한도를 다 썼어요',
+        `AI 콘티 생성 월 ${credit.limit}회를 모두 사용했어요.\n다음 달 1일에 초기화되며, 더 필요하시면 플랜을 올려주세요.\n\n문의: hyeonjijang@weknew.com`,
+      );
+      router.back();
+      return;
+    }
+
     try {
       const today = new Date().toLocaleDateString('ko-KR', {
         year: 'numeric',

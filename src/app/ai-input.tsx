@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { C, F } from '@/constants/theme';
 import { nextServiceDate, nextServiceLabel } from '@/lib/date';
+import { useAiCreditRemote, type AiCredit } from '@/lib/db';
 import { normalizeImageType } from '@/lib/media';
 import { useStore } from '@/store/useStore';
 
@@ -39,6 +40,14 @@ export default function AiInputScreen() {
     if (!targetTeamId) setAiTargetTeam(currentTeamId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 이번 달 AI 생성 잔여 횟수 (교회 전체 기준, 차감 없이 조회)
+  const [credit, setCredit] = useState<AiCredit | null>(null);
+  useEffect(() => {
+    const teamId = targetTeamId ?? currentTeamId;
+    if (!teamId) return;
+    useAiCreditRemote(teamId, true).then(setCredit);
+  }, [targetTeamId, currentTeamId]);
 
   const pickImages = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -165,6 +174,12 @@ export default function AiInputScreen() {
 
       {/* submit */}
       <View style={[st.footer, { paddingBottom: insets.bottom + 14 }]}>
+        {credit && credit.limit < 100000 && (
+          <Text style={st.creditHint}>
+            이번 달 AI 생성 {credit.used}/{credit.limit}회 사용
+            {!credit.ok && ' · 한도 초과 — 다음 달 1일 초기화'}
+          </Text>
+        )}
         <Pressable
           disabled={!canSubmit}
           onPress={goReview}
@@ -274,4 +289,11 @@ const st = StyleSheet.create({
     elevation: 4,
   },
   submitLabel: { fontFamily: F.sansBold, fontSize: 15.5, color: '#fff' },
+  creditHint: {
+    fontFamily: F.sans,
+    fontSize: 11.5,
+    color: C.mut,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
 });

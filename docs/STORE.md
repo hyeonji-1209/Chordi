@@ -54,3 +54,16 @@ To review team features without creating a church, use invite code: (베타 팀 
 - icon-512.png — 앱 아이콘 512×512
 - feature-graphic.png — 그래픽 이미지 1024×500
 - screenshot-*.png — 폰 스크린샷 (최소 2장, 1080×2400)
+
+## 과금 정책 (확정)
+| 플랜 | 월 가격 | AI 콘티 생성(교회 전체/월) | 팀 수 기준 |
+|---|---|---|---|
+| 무료 | 0원 | 4회 (매달 1일 리셋) | — |
+| 스타터 | 19,000원 | 20회 | ~2팀 |
+| 스탠다드 | 49,000원 | 60회 | ~6팀 |
+| 처치 | 99,000원 | 무제한 | 무제한 |
+
+- 콘티 보기·악보·이조·알림·QR 초대는 전 플랜 무료 — AI 생성만 과금
+- 결제: 계좌이체 → 입금 확인 → `update churches set plan='standard' where name='OO교회';`
+- 한도는 서버(use_ai_credit RPC) 집계, 팀 수는 판매 기준으로 수동 관리
+- 연간 결제 시 2개월 무료 (연 190,000 / 490,000 / 990,000)

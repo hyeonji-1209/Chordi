@@ -134,6 +134,22 @@ export async function createChurchWithTeamsRemote(
   return data as string;
 }
 
+export type AiCredit = { ok: boolean; used: number; limit: number; plan: string };
+
+/** AI 생성 1회 사용 (dryRun이면 차감 없이 잔여 확인). RPC 미설치·로컬 모드면 null(제한 없음) */
+export async function useAiCreditRemote(teamId: string, dryRun = false): Promise<AiCredit | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc('use_ai_credit', {
+    p_team_id: teamId,
+    p_dry_run: dryRun,
+  });
+  if (error) {
+    console.warn('[ai-credit]', error.message);
+    return null; // 한도 확인 실패로 사용 자체를 막지는 않음
+  }
+  return data as AiCredit;
+}
+
 export async function joinTeamRemote(code: string): Promise<string> {
   const { data, error } = await sb().rpc('join_team_by_code', { code });
   if (error) throw error;
