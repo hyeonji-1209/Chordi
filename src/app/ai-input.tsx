@@ -174,12 +174,29 @@ export default function AiInputScreen() {
 
       {/* submit */}
       <View style={[st.footer, { paddingBottom: insets.bottom + 14 }]}>
-        {credit && credit.limit < 100000 && (
-          <Text style={st.creditHint}>
-            이번 달 AI 생성 {credit.used}/{credit.limit}회 사용
-            {!credit.ok && ' · 한도 초과 — 다음 달 1일 초기화'}
-          </Text>
-        )}
+        {credit && credit.limit < 100000 && (() => {
+          const remain = Math.max(0, credit.limit - credit.used);
+          const ratio = credit.used / credit.limit;
+          const ringColor = ratio < 0.5 ? '#5E8A6E' : ratio < 0.85 ? C.goldDark : '#8E3E5C';
+          return (
+            <View style={st.creditRow}>
+              <View style={[st.creditRing, { borderColor: ringColor }]}>
+                <Text style={[st.creditRingNum, { color: ringColor }]}>{remain}</Text>
+              </View>
+              <View>
+                <Text style={st.creditTitle}>
+                  이번 달 AI 생성 {credit.used}/{credit.limit}회
+                  {credit.boost && ' · 첫 달 20회 🎁'}
+                </Text>
+                <Text style={st.creditSub}>
+                  {credit.ok
+                    ? `${remain}회 남음 · 매달 1일 초기화`
+                    : '한도 초과 — 다음 달 1일에 다시 채워져요'}
+                </Text>
+              </View>
+            </View>
+          );
+        })()}
         <Pressable
           disabled={!canSubmit}
           onPress={goReview}
@@ -289,11 +306,22 @@ const st = StyleSheet.create({
     elevation: 4,
   },
   submitLabel: { fontFamily: F.sansBold, fontSize: 15.5, color: '#fff' },
-  creditHint: {
-    fontFamily: F.sans,
-    fontSize: 11.5,
-    color: C.mut,
-    textAlign: 'center',
-    marginBottom: 8,
+  creditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 10,
   },
+  creditRing: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  creditRingNum: { fontFamily: F.sansBold, fontSize: 13 },
+  creditTitle: { fontFamily: F.sansBold, fontSize: 12.5, color: C.ink },
+  creditSub: { fontFamily: F.sans, fontSize: 11, color: C.mut, marginTop: 1 },
 });

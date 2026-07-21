@@ -1,11 +1,11 @@
 -- 플랜 + AI 사용량 한도 (Supabase SQL Editor에서 실행)
 --
--- 플랜별 월 AI 콘티 생성 한도:
---   free     4회  (기본)
+-- 플랜별 월 AI 콘티 생성 한도 (교회 전체 합산):
+--   free     4회  (기본) — 단, 가입 첫 달은 20회 웰컴 부스트
 --   starter  20회 (월 19,000원)
 --   standard 60회 (월 49,000원)
 --   church   무제한 (월 99,000원)
--- 결제는 앱 밖(계좌이체)에서 받고, 입금 확인 후 아래처럼 수동 활성화:
+-- 플랜 변경(추후 RevenueCat 연동 전 수동):
 --   update churches set plan = 'standard' where name = '은혜중앙교회';
 
 alter table churches add column if not exists plan text not null default 'free';
@@ -30,6 +30,8 @@ declare
   v_ym text := to_char(now(), 'YYYY-MM');
   v_limit int;
   v_count int := 0;
+  v_created timestamptz;
+  v_boost boolean := false;
 begin
   if not exists (
     select 1 from team_members where team_id = p_team_id and user_id = auth.uid()
@@ -52,12 +54,25 @@ begin
     else 4
   end;
 
+  -- 무료 플랜 첫 달 웰컴 부스트: 가입한 달에는 20회
+  if v_plan = 'free' then
+    if v_church is not null then
+      select created_at into v_created from churches where id = v_church;
+    else
+      select created_at into v_created from teams where id = p_team_id;
+    end if;
+    if v_created is not null and to_char(v_created, 'YYYY-MM') = v_ym then
+      v_limit := 20;
+      v_boost := true;
+    end if;
+  end if;
+
   select au.count into v_count from ai_usage au
     where au.scope_id = v_scope and au.ym = v_ym;
   v_count := coalesce(v_count, 0);
 
   if v_count >= v_limit then
-    return jsonb_build_object('ok', false, 'used', v_count, 'limit', v_limit, 'plan', v_plan);
+    return jsonb_build_object('ok', false, 'used', v_count, 'limit', v_limit, 'plan', v_plan, 'boost', v_boost);
   end if;
 
   if not p_dry_run then
@@ -66,7 +81,7 @@ begin
     v_count := v_count + 1;
   end if;
 
-  return jsonb_build_object('ok', true, 'used', v_count, 'limit', v_limit, 'plan', v_plan);
+  return jsonb_build_object('ok', true, 'used', v_count, 'limit', v_limit, 'plan', v_plan, 'boost', v_boost);
 end
 $$;
 

@@ -134,7 +134,7 @@ export async function createChurchWithTeamsRemote(
   return data as string;
 }
 
-export type AiCredit = { ok: boolean; used: number; limit: number; plan: string };
+export type AiCredit = { ok: boolean; used: number; limit: number; plan: string; boost?: boolean };
 
 /** AI 생성 1회 사용 (dryRun이면 차감 없이 잔여 확인). RPC 미설치·로컬 모드면 null(제한 없음) */
 export async function useAiCreditRemote(teamId: string, dryRun = false): Promise<AiCredit | null> {
