@@ -186,7 +186,7 @@ export default function AiInputScreen() {
               <View>
                 <Text style={st.creditTitle}>
                   이번 달 AI 생성 {credit.used}/{credit.limit}회
-                  {credit.boost && ' · 첫 달 20회 🎁'}
+                  {credit.boost && ' · 웰컴 20회 (30일)'}
                 </Text>
                 <Text style={st.creditSub}>
                   {credit.ok

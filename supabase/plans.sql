@@ -1,7 +1,7 @@
 -- 플랜 + AI 사용량 한도 (Supabase SQL Editor에서 실행)
 --
 -- 플랜별 월 AI 콘티 생성 한도 (교회 전체 합산):
---   free     4회  (기본) — 단, 가입 첫 달은 20회 웰컴 부스트
+--   free     4회  (기본) — 단, 가입 후 30일간은 20회 웰컴 부스트
 --   starter  20회 (월 19,000원)
 --   standard 60회 (월 49,000원)
 --   church   무제한 (월 99,000원)
@@ -54,14 +54,14 @@ begin
     else 4
   end;
 
-  -- 무료 플랜 첫 달 웰컴 부스트: 가입한 달에는 20회
+  -- 무료 플랜 웰컴 부스트: 가입 후 30일간 20회
   if v_plan = 'free' then
     if v_church is not null then
       select created_at into v_created from churches where id = v_church;
     else
       select created_at into v_created from teams where id = p_team_id;
     end if;
-    if v_created is not null and to_char(v_created, 'YYYY-MM') = v_ym then
+    if v_created is not null and v_created > now() - interval '30 days' then
       v_limit := 20;
       v_boost := true;
     end if;
